@@ -10,6 +10,27 @@ curl -fsSL https://raw.githubusercontent.com/braiidev/pc-monitor/main/install.sh
 
 Instala sin sudo: código en `~/.local/share/pc-monitor/`, comando `monitor` en `~/.local/bin/monitor` (symlink al venv). La configuración queda en `~/.config/monitor/` y no se toca.
 
+### Dependencias por sistema
+
+| Sistema | Comando |
+|---|---|
+| Debian/Ubuntu | `sudo apt install git python3 python3-venv` |
+| Alpine | `apk add git python3 py3-pip py3-virtualenv` |
+
+En Alpine no está `bash` (usa `sh`); el mismo script funciona con cualquiera de los dos:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/braiidev/pc-monitor/main/install.sh | sh
+```
+
+### Nota para desarrollo
+
+`install.sh` clona el repo remoto, así que para instalar tus propios cambios primero hay que pushear:
+
+```bash
+git push origin main
+```
+
 ## Usar
 
 ```bash

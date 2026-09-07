@@ -1,10 +1,11 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # install.sh — Instala/actualiza pc-monitor (monitor de sistema en consola)
-# Uso: curl -fsSL https://raw.githubusercontent.com/braiidev/pc-monitor/main/install.sh | bash
+# Uso: curl -fsSL https://raw.githubusercontent.com/braiidev/pc-monitor/main/install.sh | sh
+#   También funciona con bash:  ... | bash
 # Instala SIN sudo en ~/.local: código en ~/.local/share/pc-monitor, comando en ~/.local/bin/monitor.
 # Configuración personal: vive en ~/.config/monitor y no se toca.
 
-set -euo pipefail
+set -eu
 
 REPO_URL="https://github.com/braiidev/pc-monitor.git"
 TARGET="${PC_MONITOR_DIR:-$HOME/.local/share/pc-monitor}"
