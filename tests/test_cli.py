@@ -8,6 +8,7 @@ import pytest
 
 from monitor.main import main, resolve_theme
 from monitor import views
+from monitor import config
 
 
 def test_version(monkeypatch, capsys):
@@ -59,6 +60,46 @@ def test_resolve_theme_explicit_unknown_raises(monkeypatch, capsys):
 
 def test_toast_seconds_positive_and_multi_interval():
     assert views.TOAST_SECONDS >= 2.0  # debe durar al menos un par de refrescos
+
+
+def test_cli_theme_custom_saves_valid_palette(tmp_path, monkeypatch, capsys):
+    from monitor.main import _cli_theme_custom
+
+    monkeypatch.setattr(config, "CONFIG_PATH", tmp_path / "monitor" / "config.toml")
+    monkeypatch.setattr(config, "LEGACY_CONFIG_PATH", tmp_path / "monitor.toml")
+    monkeypatch.setattr("os.environ", {"EDITOR": "true"})  # editor que "no edita"
+    monkeypatch.setattr("shutil.which", lambda name: None)
+    cfg = config.load_config()
+    cfg["custom"] = {"red": "196", "yellow": "93", "cyan": "96", "green": "92"}
+    config.save_config(cfg)
+
+    rc = _cli_theme_custom()
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "Tema custom actualizado" in out
+    assert "red=196" in out
+    again = config.load_config()
+    assert again["custom"]["red"] == "196"
+
+
+def test_cli_theme_custom_normalizes_invalid(tmp_path, monkeypatch, capsys):
+    from monitor.main import _cli_theme_custom
+
+    monkeypatch.setattr(config, "CONFIG_PATH", tmp_path / "monitor" / "config.toml")
+    monkeypatch.setattr(config, "LEGACY_CONFIG_PATH", tmp_path / "monitor.toml")
+    monkeypatch.setattr("os.environ", {"EDITOR": "true"})
+    monkeypatch.setattr("shutil.which", lambda name: None)
+    cfg = config.load_config()
+    cfg["custom"] = {"red": "pepe", "yellow": "93", "cyan": ";", "green": "92"}
+    config.save_config(cfg)
+
+    rc = _cli_theme_custom()
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "Valores inválidos" in out
+    again = config.load_config()
+    assert again["custom"]["red"] == "91"   # caen a clasico
+    assert again["custom"]["cyan"] == "96"
 
 
 def test_apply_update_updates_when_behind(monkeypatch, capsys):

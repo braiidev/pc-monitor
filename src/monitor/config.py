@@ -12,13 +12,26 @@ LEGACY_CONFIG_PATH = Path(os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".
 DEFAULT_CONFIG = {
     "general": {"loop": True, "short": True, "threshold": 1.0, "top": 5, "interval": 2.0, "theme": "clasico"},
     "sections": {"disk": False, "network": False, "swap": True, "vram": True},
+    "custom": {"red": "91", "yellow": "93", "cyan": "96", "green": "92"},  # = paleta clasico
 }
 
 # orden fijo para que el archivo escrito quede siempre legible/estable
 _CONFIG_LAYOUT = {
     "general": ["loop", "short", "threshold", "top", "interval", "theme"],
     "sections": ["disk", "network", "swap", "vram"],
+    "custom": ["red", "yellow", "cyan", "green"],
 }
+
+# comentarios volcados siempre en la sección [custom] (el parser los ignora)
+_CUSTOM_COMMENTS = """\
+# Tema personalizado (editá con: monitor --theme-custom)
+# Roles: red (alerta)  yellow (aviso)  cyan (estructura)  green (OK)
+# Color = código ANSI, o vacío = sin color. Códigos válidos:
+#   31 rojo  32 verde  33 amarillo  34 azul  35 magenta  36 cian  37 blanco
+#   brillantes "90".."97"  (ej. 91 rojo claro, 92 verde claro, 96 cian claro)
+#   256 colores: "38;5;N"  (N de 0 a 255, ej. 38;5;136)
+# Ejemplos: red = "196"   yellow = ""   green = "92"   cyan = "38;5;117"
+"""
 
 
 def _parse_scalar(raw: str) -> object:
@@ -55,12 +68,16 @@ def _write_toml_lite(cfg: dict[str, dict[str, object]]) -> str:
     lines = []
     for section, keys in _CONFIG_LAYOUT.items():
         lines.append(f"[{section}]")
+        if section == "custom":
+            lines.append(_CUSTOM_COMMENTS.rstrip("\n"))
         for key in keys:
             if key not in cfg.get(section, {}):
                 continue
             val = cfg[section][key]
             if isinstance(val, bool):
                 val_str = "true" if val else "false"
+            elif isinstance(val, str):
+                val_str = f'"{val}"'  # strings siempre entre comillas (colores ANSI)
             else:
                 val_str = str(val)
             lines.append(f"{key} = {val_str}")
@@ -109,6 +126,8 @@ def save_config(cfg: dict[str, dict[str, object]]) -> None:
 
 
 def config_from_args(args: object) -> dict[str, dict[str, object]]:
+    from monitor import theme
+
     return {
         "general": {
             "loop": args.loop,
@@ -119,4 +138,5 @@ def config_from_args(args: object) -> dict[str, dict[str, object]]:
             "theme": args.theme,
         },
         "sections": {"disk": args.disk, "network": args.network, "swap": args.swap, "vram": args.vram},
+        "custom": dict(theme.custom_palette()),
     }

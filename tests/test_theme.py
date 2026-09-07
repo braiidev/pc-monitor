@@ -86,3 +86,44 @@ def test_mono_has_no_color_codes():
     theme.ACTIVE = "mono"
     for role in ("red", "yellow", "cyan", "green"):
         assert theme.c(role) == ""
+
+
+# ────────────────────────── custom configurable (v0.8) ──────────────────────
+
+def test_custom_defaults_to_clasico():
+    theme.set_custom_palette({})
+    theme.ACTIVE = "custom"
+    assert theme.c("red") == "\033[91m"
+    assert theme.c("green") == "\033[92m"
+
+
+def test_custom_palette_overrides_colors():
+    theme.set_custom_palette({"red": "196", "yellow": "", "cyan": "38;5;117", "green": "92"})
+    theme.ACTIVE = "custom"
+    assert theme.c("red") == "\033[196m"
+    assert theme.c("yellow") == ""
+    assert theme.c("cyan") == "\033[38;5;117m"
+
+
+def test_custom_invalid_role_falls_back_to_clasico():
+    theme.set_custom_palette({"red": "nope", "yellow": "@@@", "cyan": "96", "green": "9999"})
+    assert theme.custom_palette()["red"] == "91"
+    assert theme.custom_palette()["yellow"] == "93"
+    assert theme.custom_palette()["cyan"] == "96"
+    assert theme.custom_palette()["green"] == "92"
+
+
+def test_custom_palette_does_not_leak_into_other_themes():
+    theme.set_custom_palette({"red": "196", "yellow": "93", "cyan": "96", "green": "92"})
+    theme.ACTIVE = "clasico"
+    assert theme.c("red") == "\033[91m"
+
+
+def test_valid_code():
+    assert theme.valid_code("")
+    assert theme.valid_code("91")
+    assert theme.valid_code("38;5;117")
+    assert not theme.valid_code("red")
+    assert not theme.valid_code("9999")
+    assert not theme.valid_code("-1")
+    assert not theme.valid_code(None)

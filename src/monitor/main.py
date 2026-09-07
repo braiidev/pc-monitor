@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import os
 import shutil
+import subprocess
 import sys
 
 from monitor import __version__, theme
@@ -16,11 +17,12 @@ BIN_DIR = os.path.join(os.path.expanduser("~"), ".local", "bin")
 BIN_PATH = os.path.join(BIN_DIR, "monitor")
 INSTALL_DIR_EXPECTED = os.path.join(os.path.expanduser("~"), ".local", "share", "pc-monitor")
 
-USAGE = """uso: monitor [--update | --check-update | --uninstall | --version] [opciones de monitoreo]
+USAGE = """uso: monitor [--update | --check-update | --theme-custom | --uninstall | --version] [opciones de monitoreo]
 
   (sin argumentos)   imprime el estado del sistema (o entra en --loop según config)
   --update           actualiza el paquete (git pull) y sale
   --check-update     verifica si hay versión nueva
+  --theme-custom     edita la paleta del tema custom (abre $EDITOR en la config) y sale
   --uninstall        desinstala el paquete (y, si confirmás, la config)
   --version          imprime la versión instalada
 
@@ -28,6 +30,34 @@ Opciones de monitoreo: monitor [--help]"""
 
 
 # ────────────────────────── self-management (CLI) ──────────────────────────
+
+def _cli_theme_custom() -> int:
+    """Abre la config en el editor para editar la paleta del tema custom."""
+    cfg = load_config()  # garantiza que exista config con sección [custom]
+    if "custom" not in cfg:
+        cfg["custom"] = dict(theme.custom_palette())
+        save_config(cfg)
+
+    editor = os.environ.get("EDITOR")
+    if not editor:
+        candidate = shutil.which("nano") or shutil.which("vim") or shutil.which("vi")
+        editor = candidate or "vi"
+    print(f"▶ Editá el tema custom en {CONFIG_PATH} (guardá y cerrá el editor)")
+    try:
+        subprocess.call([editor, str(CONFIG_PATH)])
+    except OSError as e:
+        print(f"Error al abrir el editor {editor!r}: {e}", file=sys.stderr)
+        return 1
+
+    cfg = load_config()
+    theme.set_custom_palette(cfg.get("custom", {}))
+    bad = {r: cfg["custom"][r] for r in theme.CUSTOM_ROLES if not theme.valid_code(cfg["custom"].get(r))}
+    cfg["custom"] = dict(theme.custom_palette())  # normaliza roles inválidos a clasico
+    save_config(cfg)
+    if bad:
+        print("⚠ Valores inválidos corregidos a clasico:", ", ".join(f"{k}={v!r}" for k, v in bad.items()))
+    print("✓ Tema custom actualizado:", ", ".join(f"{k}={theme.custom_palette()[k]}" for k in theme.CUSTOM_ROLES))
+    return 0
 
 def _cli_update() -> int:
     res = do_update(repo_root())
@@ -158,6 +188,8 @@ def main() -> None:
         sys.exit(_cli_update())
     if "--check-update" in argv:
         sys.exit(_cli_check_update())
+    if "--theme-custom" in argv:
+        sys.exit(_cli_theme_custom())
     if "--uninstall" in argv:
         sys.exit(_cli_uninstall())
     if "--version" in argv:
@@ -166,6 +198,7 @@ def main() -> None:
 
     no_config = "--no-config" in argv
     cfg = {k: dict(v) for k, v in DEFAULT_CONFIG.items()} if no_config else load_config()
+    theme.set_custom_palette(cfg.get("custom", {}))  # paleta del tema custom desde config
     args = parse_args(cfg)
     if args.threshold <= 0:
         print("El umbral debe ser un número mayor a 0.", file=sys.stderr)

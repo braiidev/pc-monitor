@@ -49,6 +49,7 @@ monitor --disk --network   # incluir disco y red
 | `-n, --top N` | Cantidad de procesos a listar |
 | `--interval S` | Segundos entre refrescos en `--loop` |
 | `--theme NOMBRE` | Tema de color: `clasico`, `mono`, `calido`, `alto_contraste`, `flatline`, `custom` |
+| `--theme-custom` | Abre `$EDITOR` en la config para editar la paleta del tema `custom` |
 | `--disk / --network / --swap / --vram` | Toggle de secciones |
 | `--no-config` | Ignorar y no tocar la config |
 
@@ -79,7 +80,16 @@ disk = false
 network = false
 swap = true
 vram = true
+
+# Tema custom: paleta del tema `custom` (editable con `monitor --theme-custom`)
+[custom]
+red = "91"
+yellow = "93"
+cyan = "96"
+green = "92"
 ```
+
+El tema `custom` parte de la paleta `clasico`; sus valores se editan con `monitor --theme-custom` (abre `$EDITOR`). Los códigos son ANSI: vacío = sin color, o SGR válido (ej. `31`–`37`, brillantes `90`–`97`, 256 colores `38;5;N`). Valores inválidos caen a `clasico` automáticamente.
 
 ## Actualizar
 

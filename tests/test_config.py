@@ -79,3 +79,33 @@ def test_load_tolerates_broken_or_partial(tmp_path, monkeypatch, content):
     cfg = config.load_config()
     assert cfg["general"]["loop"] is True
     assert cfg["sections"]["swap"] is True
+
+
+def test_custom_palette_persists_roundtrip(tmp_path, monkeypatch):
+    new = tmp_path / "monitor" / "config.toml"
+    monkeypatch.setattr(config, "CONFIG_PATH", new)
+    monkeypatch.setattr(config, "LEGACY_CONFIG_PATH", tmp_path / "monitor.toml")
+    cfg = config.load_config()
+    cfg["custom"] = {"red": "196", "yellow": "", "cyan": "38;5;117", "green": "92"}
+    config.save_config(cfg)
+    again = config.load_config()
+    assert again["custom"] == {"red": "196", "yellow": "", "cyan": "38;5;117", "green": "92"}
+
+
+def test_written_config_includes_custom_section_with_comments(tmp_path, monkeypatch):
+    new = tmp_path / "monitor" / "config.toml"
+    monkeypatch.setattr(config, "CONFIG_PATH", new)
+    monkeypatch.setattr(config, "LEGACY_CONFIG_PATH", tmp_path / "monitor.toml")
+    config.load_config()
+    text = new.read_text()
+    assert "[custom]" in text
+    assert "38;5;N" in text  # ejemplo comentado de 256 colores
+    config.save_config(config.load_config())
+
+
+def test_writer_quotes_custom_string_codes(tmp_path):
+    cfg = {"custom": {"red": "91", "yellow": "", "cyan": "38;5;117", "green": "92"}}
+    text = config._write_toml_lite(cfg)
+    assert 'red = "91"' in text
+    assert 'yellow = ""' in text
+    assert 'cyan = "38;5;117"' in text
