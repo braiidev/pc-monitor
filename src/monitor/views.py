@@ -276,7 +276,34 @@ TOGGLE_KEYS = {
     "5": ("vram", "VRAM"),
 }
 
-HELP_FOOTER = "[q] salir  [1] vista  [2] disco  [3] red  [4] swap  [5] vram  [t] tema  [?] ayuda"
+HELP_FOOTER = "[q] salir  [1] vista  [2] disco  [3] red  [4] swap  [5] vram  [t] tema  [u] update  [?] ayuda"
+
+
+def _apply_update() -> bool:
+    """Aplica una actualización (tecla u). Devuelve True si hubo cambios y hay que re-ejecutar."""
+    from monitor.update import check_update, do_update, repo_root
+
+    info = check_update(repo_root())
+    if not info.ok:
+        print(f"⚠ No se pudo verificar: {info.error}")
+        return False
+    if info.behind == 0:
+        print(f"✓ Estás al día ({info.current})")
+        return False
+    res = do_update(repo_root())
+    print(res.message)
+    return res.ok
+
+
+def _restart_process(fd: int, old: object) -> None:
+    """Re-ejecuta el proceso (tras una actualización): restaura terminal y execv."""
+    try:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old)
+    except Exception:
+        pass
+    sys.stdout.write("\033[?25h")
+    sys.stdout.flush()
+    os.execv(sys.executable, [sys.executable, "-m", "monitor", *sys.argv[1:]])
 
 
 def loop_mode(args: object, threshold_bytes: int) -> None:
@@ -306,7 +333,7 @@ def loop_mode(args: object, threshold_bytes: int) -> None:
                 full_info(args, threshold_bytes)
             if show_help:
                 sys.stdout.write(f"\n{DIM}{HELP_FOOTER}{RESET}\n")
-            sys.stdout.write(f"{DIM}[q] salir  [?] ayuda  {time.strftime('%H:%M')}{RESET}")
+            sys.stdout.write(f"{DIM}[u] update  [t] tema  [?] ayuda  {time.strftime('%H:%M')}{RESET}")
         finally:
             sys.stdout = old_out
 
@@ -346,6 +373,12 @@ def loop_mode(args: object, threshold_bytes: int) -> None:
 
                         save_config(config_from_args(args))
                     render()  # feedback inmediato con el nuevo tema
+                    continue
+                if k == "u":
+                    if _apply_update():
+                        _restart_process(fd, old)
+                        return
+                    render()
                     continue
                 if k in TOGGLE_KEYS:
                     attr, _label = TOGGLE_KEYS[k]
