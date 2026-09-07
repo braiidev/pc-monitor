@@ -319,8 +319,10 @@ def loop_mode(args: object, threshold_bytes: int) -> None:
     new[6][termios.VTIME] = 1
 
     show_help = False
+    theme_feedback = False
 
     def render() -> None:
+        nonlocal theme_feedback
         buf = io.StringIO()
         old_out = sys.stdout
         sys.stdout = buf
@@ -333,7 +335,11 @@ def loop_mode(args: object, threshold_bytes: int) -> None:
                 full_info(args, threshold_bytes)
             if show_help:
                 sys.stdout.write(f"\n{DIM}{HELP_FOOTER}{RESET}\n")
-            sys.stdout.write(f"{DIM}[u] update  [t] tema  [?] ayuda  {time.strftime('%H:%M')}{RESET}")
+            if theme_feedback:
+                theme_feedback = False  # se muestra una sola pasada y se limpia solo
+                sys.stdout.write(f"{CYAN}theme: {args.theme}{RESET}  {DIM}{time.strftime('%H:%M')}{RESET}")
+            else:
+                sys.stdout.write(f"{DIM}[u] update  [?] ayuda  {time.strftime('%H:%M')}{RESET}")
         finally:
             sys.stdout = old_out
 
@@ -372,6 +378,7 @@ def loop_mode(args: object, threshold_bytes: int) -> None:
                         from monitor.config import config_from_args, save_config
 
                         save_config(config_from_args(args))
+                    theme_feedback = True  # muestra "theme: X" una pasada
                     render()  # feedback inmediato con el nuevo tema
                     continue
                 if k == "u":

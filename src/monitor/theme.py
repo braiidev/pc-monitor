@@ -1,20 +1,29 @@
 """Temas de color ANSI para el monitor.
 
-Cada tema define códigos por rol semántico (rojo/alerta, amarillo, cian,
-verde, etc.). El tema activo se cambia en vivo (--theme o tecla t en --loop)
-sin re-renderizar el dibujo: views.py consulta theme.c(role) en cada salida.
+Portados de Clock/Player (braiidev/clock -> braiidev/player), adaptados a los
+roles de pc-monitor (rojo/alerta, amarillo, cian/estructura, verde/OK).
+
+Identidad de cada tema (tabla COLOR_SPEC de Player):
+    tema            cian(estructura)  verde(OK)   amarillo  rojo(alerta)
+    clasico         Cian              Verde       Amarillo  Rojo
+    mono            (sin color)       (sin color) (sin)     (sin)
+    calido          Amarillo          Rojo        Amarillo  Rojo
+    alto_contraste  Magenta           Verde       Magenta   Magenta
+    flatline        Cian              Rojo        Rojo      Rojo
+    custom          plantilla editable (default = clasico)
 """
 
 from __future__ import annotations
 
-THEME_NAMES = ("clasico", "mono", "cyber", "forest", "ocean")
+THEME_NAMES = ("clasico", "mono", "calido", "alto_contraste", "flatline", "custom")
 
 THEMES: dict[str, dict[str, str]] = {
     "clasico": {"bold": "1", "dim": "2", "red": "91", "yellow": "93", "cyan": "96", "green": "92"},
     "mono":    {"bold": "1", "dim": "2", "red": "", "yellow": "", "cyan": "", "green": ""},
-    "cyber":   {"bold": "1", "dim": "2", "red": "95", "yellow": "96", "cyan": "93", "green": "92"},
-    "forest":  {"bold": "1", "dim": "2", "red": "31", "yellow": "93", "cyan": "36", "green": "92"},
-    "ocean":   {"bold": "1", "dim": "2", "red": "94", "yellow": "93", "cyan": "96", "green": "36"},
+    "calido":  {"bold": "1", "dim": "2", "red": "91", "yellow": "93", "cyan": "93", "green": "91"},
+    "alto_contraste": {"bold": "1", "dim": "2", "red": "95", "yellow": "95", "cyan": "95", "green": "92"},
+    "flatline": {"bold": "1", "dim": "2", "red": "91", "yellow": "91", "cyan": "96", "green": "91"},
+    "custom":  {"bold": "1", "dim": "2", "red": "91", "yellow": "93", "cyan": "96", "green": "92"},
 }
 
 RESET_CODE = "0"
