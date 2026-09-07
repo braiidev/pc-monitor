@@ -8,7 +8,7 @@ import shutil
 import sys
 
 from monitor import __version__, theme
-from monitor.config import CONFIG_PATH, DEFAULT_CONFIG, LEGACY_CONFIG_PATH, load_config
+from monitor.config import CONFIG_PATH, DEFAULT_CONFIG, LEGACY_CONFIG_PATH, load_config, save_config
 from monitor.update import check_update, do_update, repo_root
 from monitor import views
 
@@ -135,6 +135,20 @@ def parse_args(cfg: dict[str, dict[str, object]]) -> argparse.Namespace:
     return p.parse_args()
 
 
+def resolve_theme(argv: list[str], args: argparse.Namespace, cfg: dict[str, dict[str, object]], no_config: bool) -> str:
+    """Valida el theme. Tema de config viejo/roto -> fallback silencioso a 'clasico'
+    (y corrige el archivo). Solo --theme explícito inválido da error (SystemExit)."""
+    if theme.is_theme(args.theme):
+        return args.theme
+    if "--theme" in argv:
+        print(f"Tema desconocido: {args.theme!r} ({', '.join(theme.THEME_NAMES)})", file=sys.stderr)
+        raise SystemExit(1)
+    if not no_config:
+        cfg["general"]["theme"] = "clasico"
+        save_config(cfg)
+    return "clasico"
+
+
 def main() -> None:
     argv = sys.argv[1:]
     if "-h" in argv or "--help" in argv:
@@ -156,9 +170,9 @@ def main() -> None:
     if args.threshold <= 0:
         print("El umbral debe ser un número mayor a 0.", file=sys.stderr)
         sys.exit(1)
-    if not theme.is_theme(args.theme):
-        print(f"Tema desconocido: {args.theme!r} ({', '.join(theme.THEME_NAMES)})", file=sys.stderr)
-        sys.exit(1)
+    # Si el tema viene de la config (vieja/rota) y ya no existe, hacer fallback
+    # silencioso a clasico y corregir el archivo. Solo --theme explícito inválido da error.
+    args.theme = resolve_theme(argv, args, cfg, no_config)
     theme.ACTIVE = args.theme
     threshold_bytes = int(args.threshold * 1024 ** 3)
 

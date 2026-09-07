@@ -3,6 +3,7 @@
 ## Doing
 
 ## Next
+- [ ] v0.8 feat: monitor --theme-custom (abre editor interactivo del tema custom en config)
 - [ ] (próximo a decidir por el usuario)
 
 ## Done
@@ -12,3 +13,4 @@
 - [x] v0.4 temas de color (5 temas + --theme + tecla t) + test_theme
 - [x] v0.5 tecla u: update + reload automático en loop + test_cli/test_update
 - [x] v0.6 verificación final + push + tags
+- [x] v0.7 fix: fallback de tema viejo en config + toast de tema más duradero

@@ -1,8 +1,12 @@
-"""Tests del CLI (flags globales, footer y update en loop)."""
+"""Tests del CLI (flags globales, footer, temas y update en loop)."""
 
 from __future__ import annotations
 
-from monitor.main import main
+import argparse
+
+import pytest
+
+from monitor.main import main, resolve_theme
 from monitor import views
 
 
@@ -23,6 +27,38 @@ def test_help(monkeypatch, capsys):
 
 def test_help_footer_includes_update_key():
     assert "[u] update" in views.HELP_FOOTER
+
+
+def _ns(theme: str) -> argparse.Namespace:
+    return argparse.Namespace(theme=theme)
+
+
+def test_resolve_theme_keeps_valid(monkeypatch, capsys):
+    assert resolve_theme([], _ns("calido"), {}, False) == "calido"
+
+
+def test_resolve_theme_fallback_from_config(monkeypatch, capsys):
+    cfg = {"general": {"theme": "ocean"}}  # tema viejo de otra iteración
+    assert resolve_theme([], _ns("ocean"), cfg, False) == "clasico"
+    assert cfg["general"]["theme"] == "clasico"  # se corrige la config
+
+
+def test_resolve_theme_fallback_no_config(monkeypatch, capsys):
+    cfg = {"general": {"theme": "ocean"}}
+    assert resolve_theme([], _ns("ocean"), cfg, True) == "clasico"
+    assert cfg["general"]["theme"] == "ocean"  # no toca la config
+
+
+def test_resolve_theme_explicit_unknown_raises(monkeypatch, capsys):
+    with pytest.raises(SystemExit) as e:
+        resolve_theme(["--theme", "nope"], _ns("nope"), {}, False)
+    assert e.value.code == 1
+    err = capsys.readouterr().err
+    assert "Tema desconocido" in err
+
+
+def test_toast_seconds_positive_and_multi_interval():
+    assert views.TOAST_SECONDS >= 2.0  # debe durar al menos un par de refrescos
 
 
 def test_apply_update_updates_when_behind(monkeypatch, capsys):

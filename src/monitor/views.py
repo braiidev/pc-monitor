@@ -276,6 +276,8 @@ TOGGLE_KEYS = {
     "5": ("vram", "VRAM"),
 }
 
+TOAST_SECONDS = 3.0
+
 HELP_FOOTER = "[q] salir  [1] vista  [2] disco  [3] red  [4] swap  [5] vram  [t] tema  [u] update  [?] ayuda"
 
 
@@ -319,10 +321,10 @@ def loop_mode(args: object, threshold_bytes: int) -> None:
     new[6][termios.VTIME] = 1
 
     show_help = False
-    theme_feedback = False
+    theme_feedback_until = 0.0  # timestamp (monotonic) hasta el que se muestra el toast
 
     def render() -> None:
-        nonlocal theme_feedback
+        nonlocal theme_feedback_until
         buf = io.StringIO()
         old_out = sys.stdout
         sys.stdout = buf
@@ -335,8 +337,8 @@ def loop_mode(args: object, threshold_bytes: int) -> None:
                 full_info(args, threshold_bytes)
             if show_help:
                 sys.stdout.write(f"\n{DIM}{HELP_FOOTER}{RESET}\n")
-            if theme_feedback:
-                theme_feedback = False  # se muestra una sola pasada y se limpia solo
+            if time.monotonic() < theme_feedback_until:
+                # toast con feedback del tema: se muestra ~TOAST_SECONDS y expira solo
                 sys.stdout.write(f"{CYAN}theme: {args.theme}{RESET}  {DIM}{time.strftime('%H:%M')}{RESET}")
             else:
                 sys.stdout.write(f"{DIM}[u] update  [?] ayuda  {time.strftime('%H:%M')}{RESET}")
@@ -378,7 +380,7 @@ def loop_mode(args: object, threshold_bytes: int) -> None:
                         from monitor.config import config_from_args, save_config
 
                         save_config(config_from_args(args))
-                    theme_feedback = True  # muestra "theme: X" una pasada
+                    theme_feedback_until = time.monotonic() + TOAST_SECONDS  # toast con autolimpieza
                     render()  # feedback inmediato con el nuevo tema
                     continue
                 if k == "u":
