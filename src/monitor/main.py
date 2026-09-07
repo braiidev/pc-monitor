@@ -7,7 +7,7 @@ import os
 import shutil
 import sys
 
-from monitor import __version__
+from monitor import __version__, theme
 from monitor.config import CONFIG_PATH, DEFAULT_CONFIG, LEGACY_CONFIG_PATH, load_config
 from monitor.update import check_update, do_update, repo_root
 from monitor import views
@@ -120,6 +120,9 @@ def parse_args(cfg: dict[str, dict[str, object]]) -> argparse.Namespace:
                     help="Vista compacta")
     p.add_argument("-n", "--top", type=int, default=g["top"], help="Cantidad de procesos a listar")
     p.add_argument("--interval", type=float, default=g["interval"], help="Segundos entre refrescos en --loop")
+    theme_choices = ", ".join(theme.THEME_NAMES)
+    p.add_argument("--theme", default=g["theme"],
+                    help=f"Tema de color ({theme_choices})")
     p.add_argument("--disk", action=argparse.BooleanOptionalAction, default=s["disk"],
                     help="Incluir uso de disco (espacio + I/O)")
     p.add_argument("--network", action=argparse.BooleanOptionalAction, default=s["network"],
@@ -153,6 +156,10 @@ def main() -> None:
     if args.threshold <= 0:
         print("El umbral debe ser un número mayor a 0.", file=sys.stderr)
         sys.exit(1)
+    if not theme.is_theme(args.theme):
+        print(f"Tema desconocido: {args.theme!r} ({', '.join(theme.THEME_NAMES)})", file=sys.stderr)
+        sys.exit(1)
+    theme.ACTIVE = args.theme
     threshold_bytes = int(args.threshold * 1024 ** 3)
 
     try:

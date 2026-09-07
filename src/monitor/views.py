@@ -12,14 +12,30 @@ import time
 
 from monitor import formatting as fmt
 from monitor import readers
+from monitor import theme
 
-BOLD = "\033[1m"
-DIM = "\033[2m"
-RED = "\033[91m"
-YELLOW = "\033[93m"
-CYAN = "\033[96m"
-GREEN = "\033[92m"
-RESET = "\033[0m"
+# Colores dinámicos: resuelven el código ANSI del tema activo al imprimirse,
+# así la tecla "t" puede cambiar el tema en vivo dentro de --loop.
+class _ThemeColor(str):
+    def __new__(cls, role: str) -> "_ThemeColor":
+        obj = super().__new__(cls, "")
+        obj.role = role
+        return obj
+
+    def __format__(self, spec: str) -> str:
+        return format(theme.c(self.role), spec)
+
+    def __str__(self) -> str:  # type: ignore[override]
+        return theme.c(self.role)
+
+
+BOLD = _ThemeColor("bold")
+DIM = _ThemeColor("dim")
+RED = _ThemeColor("red")
+YELLOW = _ThemeColor("yellow")
+CYAN = _ThemeColor("cyan")
+GREEN = _ThemeColor("green")
+RESET = _ThemeColor("reset")
 
 
 def section(title: str) -> None:
@@ -260,7 +276,7 @@ TOGGLE_KEYS = {
     "5": ("vram", "VRAM"),
 }
 
-HELP_FOOTER = "[q] salir  [1] vista  [2] disco  [3] red  [4] swap  [5] vram  [?] ayuda"
+HELP_FOOTER = "[q] salir  [1] vista  [2] disco  [3] red  [4] swap  [5] vram  [t] tema  [?] ayuda"
 
 
 def loop_mode(args: object, threshold_bytes: int) -> None:
@@ -321,6 +337,15 @@ def loop_mode(args: object, threshold_bytes: int) -> None:
                 if k in ("?", "h"):
                     show_help = not show_help
                     render()
+                    continue
+                if k == "t":
+                    theme.cycle_theme()
+                    args.theme = theme.ACTIVE
+                    if not args.no_config:
+                        from monitor.config import config_from_args, save_config
+
+                        save_config(config_from_args(args))
+                    render()  # feedback inmediato con el nuevo tema
                     continue
                 if k in TOGGLE_KEYS:
                     attr, _label = TOGGLE_KEYS[k]

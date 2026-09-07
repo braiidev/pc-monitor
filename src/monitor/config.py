@@ -10,13 +10,13 @@ CONFIG_PATH = Path(os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config"
 LEGACY_CONFIG_PATH = Path(os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config"))) / "monitor.toml"
 
 DEFAULT_CONFIG = {
-    "general": {"loop": True, "short": True, "threshold": 1.0, "top": 5, "interval": 2.0},
+    "general": {"loop": True, "short": True, "threshold": 1.0, "top": 5, "interval": 2.0, "theme": "clasico"},
     "sections": {"disk": False, "network": False, "swap": True, "vram": True},
 }
 
 # orden fijo para que el archivo escrito quede siempre legible/estable
 _CONFIG_LAYOUT = {
-    "general": ["loop", "short", "threshold", "top", "interval"],
+    "general": ["loop", "short", "threshold", "top", "interval", "theme"],
     "sections": ["disk", "network", "swap", "vram"],
 }
 
@@ -116,6 +116,7 @@ def config_from_args(args: object) -> dict[str, dict[str, object]]:
             "threshold": args.threshold,
             "top": args.top,
             "interval": args.interval,
+            "theme": args.theme,
         },
         "sections": {"disk": args.disk, "network": args.network, "swap": args.swap, "vram": args.vram},
     }

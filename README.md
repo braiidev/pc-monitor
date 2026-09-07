@@ -48,6 +48,7 @@ monitor --disk --network   # incluir disco y red
 | `-s, --short / --no-short` | Vista compacta |
 | `-n, --top N` | Cantidad de procesos a listar |
 | `--interval S` | Segundos entre refrescos en `--loop` |
+| `--theme NOMBRE` | Tema de color: `clasico`, `mono`, `cyber`, `forest`, `ocean` |
 | `--disk / --network / --swap / --vram` | Toggle de secciones |
 | `--no-config` | Ignorar y no tocar la config |
 
@@ -56,6 +57,7 @@ monitor --disk --network   # incluir disco y red
 | Tecla | Acción |
 |---|---|
 | `1`–`5` | Vista corta / Disco / Red / Swap / VRAM |
+| `t` | Cambiar tema de color (se guarda en la config) |
 | `?` | Ayuda |
 | `q` | Salir |
 
@@ -70,6 +72,7 @@ short = true
 threshold = 1.0
 top = 5
 interval = 2.0
+theme = "clasico"
 
 [sections]
 disk = false
