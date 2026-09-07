@@ -8,7 +8,7 @@ import shutil
 import sys
 
 from monitor import __version__
-from monitor.config import CONFIG_PATH, DEFAULT_CONFIG, load_config
+from monitor.config import CONFIG_PATH, DEFAULT_CONFIG, LEGACY_CONFIG_PATH, load_config
 from monitor.update import check_update, do_update, repo_root
 from monitor import views
 
@@ -80,15 +80,19 @@ def _cli_uninstall() -> int:
             pass
     shutil.rmtree(source, ignore_errors=True)
 
-    if CONFIG_PATH.exists():
-        print(f"  ↳ config en {CONFIG_PATH}")
+    paths = [CONFIG_PATH, LEGACY_CONFIG_PATH]
+    paths = [p for p in paths if p.exists()]
+    if paths:
+        for p in paths:
+            print(f"  ↳ config en {p}")
         if _confirm("¿Borrar también la config? "):
-            try:
-                CONFIG_PATH.unlink()
-            except OSError:
-                pass
+            for p in paths:
+                try:
+                    p.unlink()
+                except OSError:
+                    pass
         else:
-            print("  · config conservada en", CONFIG_PATH)
+            print("  · config conservada en", ", ".join(str(p) for p in paths))
 
     print("✓ pc-monitor desinstalado")
     return 0

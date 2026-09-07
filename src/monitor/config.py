@@ -6,7 +6,8 @@ import os
 import re
 from pathlib import Path
 
-CONFIG_PATH = Path(os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config"))) / "monitor.toml"
+CONFIG_PATH = Path(os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config"))) / "monitor" / "config.toml"
+LEGACY_CONFIG_PATH = Path(os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config"))) / "monitor.toml"
 
 DEFAULT_CONFIG = {
     "general": {"loop": True, "short": True, "threshold": 1.0, "top": 5, "interval": 2.0},
@@ -74,7 +75,20 @@ def _deep_merge_defaults(cfg: dict[str, dict[str, object]]) -> dict[str, dict[st
     return merged
 
 
+def _migrate_legacy() -> None:
+    """Migra la config vieja en ~/.config/monitor.toml a ~/.config/monitor/config.toml."""
+    if CONFIG_PATH.exists() or not LEGACY_CONFIG_PATH.exists():
+        return
+    try:
+        CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        CONFIG_PATH.write_text(LEGACY_CONFIG_PATH.read_text())
+        LEGACY_CONFIG_PATH.unlink()
+    except OSError:
+        pass  # si no se puede migrar, se regenera la config por defecto al cargar
+
+
 def load_config() -> dict[str, dict[str, object]]:
+    _migrate_legacy()
     if not CONFIG_PATH.exists():
         CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
         CONFIG_PATH.write_text(_write_toml_lite(DEFAULT_CONFIG))
