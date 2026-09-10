@@ -1,6 +1,7 @@
 # TODO
 
 ## Doing
+- [ ] v0.9.8 feat: toggles 9/0 efectivos (reloj/decor en vistas) + config por pantalla (tecla c)
 
 ## Next
 

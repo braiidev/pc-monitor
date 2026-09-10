@@ -62,9 +62,9 @@ Las teclas `0`–`9` muestran/ocultan cada bloque en vivo; las letras son accion
 | Tecla | Acción |
 |---|---|
 | `1`–`8` | Toggle RAM / CPU / Swap / VRAM / Disco / Red / Top RAM / Top CPU |
-| `9` / `0` | Toggle reloj en el divisor / header y divisores |
+| `9` / `0` | Toggle reloj en el divisor / header y divisores (ornamento) |
 | `m` | Cambiar entre vista completa y compacta |
-| `c` | Editar `threshold`, `top` e `interval` (números separados por espacio) |
+| `c` | Pantalla de configuración: `1` umbral RAM · `2` top procesos · `3` intervalo; `0`/Esc volver |
 | `t` | Cambiar tema de color (muestra el nombre y se guarda en la config) |
 | `u` | Actualizar el paquete y re-ejecutar |
 | `?` | Ayuda (atajos en el divisor inferior) |

@@ -87,10 +87,31 @@ def _bar(pct: float) -> tuple[str, str]:
     return bar, color
 
 
-def _group(title: str, blocks: list[str], w: int) -> None:
-    print(f"{BOLD}{CYAN}── {title} ──{RESET}")
+def _group(title: str, blocks: list[str], w: int, decor: bool = True) -> None:
+    if decor:
+        print(f"{BOLD}{CYAN}── {title} ──{RESET}")
     for line in flex_wrap(blocks, w):
         print(line)
+
+
+def _section(decor: bool, title: str) -> None:
+    if decor:
+        print(f"{BOLD}{CYAN}── {title} ──{RESET}")
+
+
+def _build_footer(
+    show_help: bool, toast_until: float, clock_on: bool, theme_name: str
+) -> str:
+    """Fila inferior: ayuda (overlay) o reloj, con el toast de tema cuando aplica.
+    El reloj se omite si clock_on es falso."""
+    if show_help:
+        return f"{DIM}{HELP_FOOTER}{RESET}"
+    parts: list[str] = []
+    if time.monotonic() < toast_until:
+        parts.append(f"{CYAN}theme: {theme_name}{RESET}")
+    if clock_on:
+        parts.append(f"{DIM}{time.strftime('%H:%M')}{RESET}")
+    return "  ".join(parts)
 
 
 # ────────────────────────── vistas ──────────────────────────
@@ -99,7 +120,9 @@ def _group(title: str, blocks: list[str], w: int) -> None:
 def full_info(args: object, threshold_bytes: int, footer: str = "") -> None:
     tw, _ = shutil.get_terminal_size((80, 30))
     w = tw
-    print(divider_with(w, f" {CYAN}MONITOR{RESET} "))
+    dec = getattr(args, "decor", True)
+    if dec:
+        print(divider_with(w, f" {CYAN}MONITOR{RESET} "))
 
     mi = readers.read_meminfo()
     total = mi["MemTotal"]
@@ -107,7 +130,7 @@ def full_info(args: object, threshold_bytes: int, footer: str = "") -> None:
     if getattr(args, "ram", True):
         used = total - mi["MemAvailable"]
         free = mi["MemFree"]
-        print(f"{BOLD}{CYAN}── RAM ──{RESET}")
+        _section(dec, "RAM")
         for line in flex_wrap(
             [
                 f"  Usada {fmt.fmt_short(used):>5}/{fmt.fmt_short(total):<5} {used / total * 100:.1f}%",
@@ -124,7 +147,7 @@ def full_info(args: object, threshold_bytes: int, footer: str = "") -> None:
         swap_total = mi.get("SwapTotal", 0)
         if swap_total:
             swap_used = swap_total - mi.get("SwapFree", 0)
-            print(f"{BOLD}{CYAN}── SWAP ──{RESET}")
+            _section(dec, "SWAP")
             for line in flex_wrap(
                 [
                     f"  Usada {fmt.fmt_short(swap_used):>5}/{fmt.fmt_short(swap_total):<5} {swap_used / swap_total * 100:.1f}%",
@@ -137,7 +160,7 @@ def full_info(args: object, threshold_bytes: int, footer: str = "") -> None:
     if getattr(args, "vram", False):
         vram = readers.read_vram()
         if vram:
-            print(f"{BOLD}{CYAN}── VRAM ──{RESET}")
+            _section(dec, "VRAM")
             blocks: list[str] = []
             for card, vt, vu in vram:
                 label = "dGPU" if vt >= 1024**3 else "iGPU"
@@ -148,7 +171,7 @@ def full_info(args: object, threshold_bytes: int, footer: str = "") -> None:
                 print(line)
 
     if getattr(args, "cpu", True):
-        print(f"{BOLD}{CYAN}── CPU ──{RESET}")
+        _section(dec, "CPU")
         with open("/proc/loadavg") as f:
             load = f.read().strip()
         before = readers.read_cpu_lines()
@@ -171,7 +194,7 @@ def full_info(args: object, threshold_bytes: int, footer: str = "") -> None:
     if getattr(args, "disk", False):
         usage = shutil.disk_usage("/")
         used_pct = usage.used / usage.total * 100 if usage.total else 0
-        print(f"{BOLD}{CYAN}── DISCO ──{RESET}")
+        _section(dec, "DISCO")
         for line in flex_wrap(
             [
                 f"  / {fmt.fmt_short(usage.used):>5}/{fmt.fmt_short(usage.total):<5} {used_pct:.1f}%",
@@ -196,7 +219,7 @@ def full_info(args: object, threshold_bytes: int, footer: str = "") -> None:
             print(line)
 
     if getattr(args, "network", False):
-        print(f"{BOLD}{CYAN}── RED ──{RESET}")
+        _section(dec, "RED")
         before = readers.net_stats()
         time.sleep(0.2)
         after = readers.net_stats()
@@ -220,7 +243,7 @@ def full_info(args: object, threshold_bytes: int, footer: str = "") -> None:
         for rss, pid, name in procs[:3]:
             color = RED if rss >= threshold_bytes else ""
             pblocks.append(f"  {color}{fmt.fmt_short(rss):>6}{RESET} {pid:<6} {name}")
-        _group("TOP RAM", pblocks, w)
+        _group("TOP RAM", pblocks, w, dec)
 
     if getattr(args, "top_cpu", True):
         candidates = procs[:40]
@@ -234,14 +257,18 @@ def full_info(args: object, threshold_bytes: int, footer: str = "") -> None:
             cpu_procs.append(((after_t - before_t) / 0.1, pid, name))
         cpu_procs.sort(reverse=True)
         cblocks = [f"  {fmt.fmt_pct(pct):>7} {name}" for pct, _, name in cpu_procs[:3]]
-        _group("TOP CPU", cblocks, w)
+        _group("TOP CPU", cblocks, w, dec)
 
-    print(divider_with(w, footer))
+    if dec:
+        print(divider_with(w, footer))
+    elif footer:
+        print(footer)
 
 
 def short_info(args: object, threshold_bytes: int, footer: str = "") -> None:
     tw, _ = shutil.get_terminal_size((40, 20))
     w = min(tw, 40)
+    dec = getattr(args, "decor", True)
     sep = divider_with(w)
     head = divider_with(w, f" {CYAN}MONITOR{RESET} ")
 
@@ -290,12 +317,14 @@ def short_info(args: object, threshold_bytes: int, footer: str = "") -> None:
             f"  {CYAN}NET{RESET} ↓{fmt.fmt_short(rx)}/s ↑{fmt.fmt_short(tx)}/s"
         )
 
-    print(head)
+    if dec:
+        print(head)
     for line in flex_wrap(blocks, w):
         print(line)
 
     procs = readers.read_procs(10)
-    print(sep)
+    if dec:
+        print(sep)
     pblocks: list[str] = []
     for rss, _, name in procs[:3]:
         txt = f"  {fmt.fmt_short(rss):>6}  {name}"[: w - 2]
@@ -303,7 +332,10 @@ def short_info(args: object, threshold_bytes: int, footer: str = "") -> None:
     for line in flex_wrap(pblocks, w):
         print(line)
 
-    print(divider_with(w, footer))
+    if dec:
+        print(divider_with(w, footer))
+    elif footer:
+        print(footer)
 
 
 TOGGLE_KEYS = {
@@ -328,32 +360,40 @@ HELP_FOOTER = (
 )
 
 
-def _config_prompt(args: object) -> None:
-    """Tecla c: edita threshold (GB), top procesos e intervalo del loop.
-    Input: "threshold top interval" separados por espacio; vacío mantiene todo."""
+def _config_screen(args: object, w: int) -> None:
+    """Pantalla de configuración (tecla c): lista de campos numerados."""
+    print(f"{BOLD}{CYAN}── CONFIG ──{RESET}")
+    print(
+        f"  {CYAN}1{RESET}) Umbral RAM (GB)      [{GREEN}{args.threshold}{RESET}]  "
+        f"procesos > umbral resaltados"
+    )
+    print(f"  {CYAN}2{RESET}) Top procesos         [{GREEN}{args.top}{RESET}]")
+    print(f"  {CYAN}3{RESET}) Intervalo refresco   [{GREEN}{args.interval}{RESET}s]")
+    print()
+    print(f"  {DIM}[1-3] editar · [0/esc/q] volver{RESET}")
+
+
+def _config_edit_field(args: object, key: str) -> None:
+    """Edita el campo correspondiente a la tecla 1/2/3 dentro del navegador de config."""
     try:
-        raw = input(
-            f"config → threshold [{args.threshold}G] top [{args.top}] "
-            f"interval [{args.interval}s] (enter=mantener): "
-        )
+        if key == "1":
+            raw = input(f"{CYAN}umbral RAM GB [{GREEN}{args.threshold}{RESET}]: ")
+            if raw.strip():
+                args.threshold = max(float(raw), 0.1)
+        elif key == "2":
+            raw = input(f"{CYAN}top procesos [{GREEN}{args.top}{RESET}]: ")
+            if raw.strip():
+                args.top = max(int(float(raw)), 1)
+        else:
+            raw = input(f"{CYAN}intervalo s [{GREEN}{args.interval}{RESET}]: ")
+            if raw.strip():
+                args.interval = max(float(raw), 0.2)
     except (EOFError, KeyboardInterrupt):
-        return
-    vals = raw.split()
-    if not vals:
-        return
-    try:
-        for i, tok in enumerate(vals[:3]):
-            num = float(tok)
-            if i == 0:
-                args.threshold = num if num > 0 else args.threshold
-            elif i == 1:
-                args.top = int(num) if num > 0 else args.top
-            else:
-                args.interval = num if num > 0 else args.interval
+        pass
     except ValueError:
-        print("  ⚠ formato inválido (esperaba números)")
-        return
-    print(f"  ✓ threshold={args.threshold}G top={args.top} interval={args.interval}s")
+        print(
+            f"  {DIM}(valor inválido: número con punto decimal, vacío mantiene){RESET}"
+        )
 
 
 def _apply_update() -> bool:
@@ -396,6 +436,7 @@ def loop_mode(args: object, threshold_bytes: int) -> None:
     new[6][termios.VTIME] = 1
 
     show_help = False
+    config_mode = False  # tecla c: pantalla de configuración
     theme_feedback_until = 0.0  # timestamp (monotonic) hasta el que se muestra el toast
 
     def render() -> None:
@@ -406,18 +447,19 @@ def loop_mode(args: object, threshold_bytes: int) -> None:
         try:
             tw, th = shutil.get_terminal_size()
             pad = max(0, (th - 12) // 2)
-            clock = time.strftime("%H:%M")
-            if show_help:
-                footer = f"{DIM}{HELP_FOOTER}{RESET}"
-            elif time.monotonic() < theme_feedback_until:
-                # toast con feedback del tema: se muestra ~TOAST_SECONDS y expira solo
-                footer = f"{CYAN}theme: {args.theme}{RESET}  {DIM}{clock}{RESET}"
+            if config_mode:
+                _config_screen(args, tw)
             else:
-                footer = f"{DIM}{clock}{RESET}"
-            if args.short:
-                short_info(args, threshold_bytes, footer)
-            else:
-                full_info(args, threshold_bytes, footer)
+                footer = _build_footer(
+                    show_help,
+                    theme_feedback_until,
+                    getattr(args, "clock", True),
+                    args.theme,
+                )
+                if args.short:
+                    short_info(args, threshold_bytes, footer)
+                else:
+                    full_info(args, threshold_bytes, footer)
         finally:
             sys.stdout = old_out
 
@@ -443,6 +485,21 @@ def loop_mode(args: object, threshold_bytes: int) -> None:
                 if not r:
                     continue
                 k = sys.stdin.read(1)
+                if config_mode:
+                    if k in ("0", "q", "\x1b"):
+                        config_mode = False
+                        render()
+                    elif k in ("1", "2", "3"):
+                        termios.tcsetattr(fd, termios.TCSADRAIN, old)
+                        _config_edit_field(args, k)
+                        termios.tcsetattr(fd, termios.TCSADRAIN, new)
+                        threshold_bytes = int(args.threshold * 1024**3)
+                        if not args.no_config:
+                            from monitor.config import config_from_args, save_config
+
+                            save_config(config_from_args(args))
+                        render()
+                    continue
                 if k in ("q", "\x1b"):
                     return
                 if k in ("?", "h"):
@@ -454,14 +511,7 @@ def loop_mode(args: object, threshold_bytes: int) -> None:
                     render()
                     continue
                 if k == "c":
-                    termios.tcsetattr(fd, termios.TCSADRAIN, old)
-                    _config_prompt(args)
-                    termios.tcsetattr(fd, termios.TCSADRAIN, new)
-                    threshold_bytes = int(args.threshold * 1024**3)
-                    if not args.no_config:
-                        from monitor.config import config_from_args, save_config
-
-                        save_config(config_from_args(args))
+                    config_mode = True
                     render()
                     continue
                 if k == "t":

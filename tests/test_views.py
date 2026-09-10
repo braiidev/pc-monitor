@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import re
+import time
+
 from monitor import views
 
 
@@ -66,3 +69,59 @@ def test_short_info_prints_wrapped_rows(capsys):
     out = capsys.readouterr().out
     assert "MONITOR" in out
     assert "14:32" in out
+
+
+def _mini_args(decor: bool = True, clock: bool = True) -> object:
+    return type(
+        "A",
+        (),
+        {
+            "ram": True,
+            "cpu": False,
+            "swap": False,
+            "vram": False,
+            "disk": False,
+            "network": False,
+            "top_procs": False,
+            "top_cpu": False,
+            "decor": decor,
+            "clock": clock,
+        },
+    )()
+
+
+def test_build_footer_help_overrides_clock():
+    footer = views._build_footer(True, 0.0, False, "clasico")
+    assert views.HELP_FOOTER in footer
+    assert not re.search(r"\b\d{2}:\d{2}\b", footer)
+
+
+def test_build_footer_clock_off_is_empty():
+    assert views._build_footer(False, 0.0, False, "clasico") == ""
+
+
+def test_build_footer_clock_on_shows_time():
+    footer = views._build_footer(False, 0.0, True, "clasico")
+    assert re.search(r"\d{2}:\d{2}", footer) is not None
+
+
+def test_build_footer_toast_without_clock_omits_time():
+    footer = views._build_footer(False, time.monotonic() + 10, False, "clasico")
+    assert "theme: clasico" in footer
+    assert not re.search(r"\b\d{2}:\d{2}\b", footer)
+
+
+def test_short_info_decor_off_keeps_data_and_clock(capsys):
+    views.short_info(_mini_args(decor=False), int(1.0 * 1024**3), footer="14:32")
+    out = capsys.readouterr().out
+    assert "14:32" in out
+    assert "MONITOR" not in out
+    assert "──" not in out
+
+
+def test_full_info_decor_off_keeps_data_and_clock(capsys):
+    views.full_info(_mini_args(decor=False), int(1.0 * 1024**3), footer="14:32")
+    out = capsys.readouterr().out
+    assert "14:32" in out
+    assert "MONITOR" not in out
+    assert "──" not in out
