@@ -34,9 +34,11 @@ git push origin main
 ## Usar
 
 ```bash
-monitor            # estado completo (o --loop según config)
+monitor            # estado completo (o --live según config)
 monitor -l         # modo en vivo con refresco periódico
+monitor --once     # imprime una vez y sale
 monitor -s         # vista compacta
+monitor --full     # vista completa
 monitor 2          # umbral de 2GB para marcar procesos excesivos
 monitor --disk --network   # incluir disco y red
 ```
@@ -44,18 +46,18 @@ monitor --disk --network   # incluir disco y red
 | Argumento | Acción |
 |---|---|
 | `threshold` | Umbral en GB de RAM para marcar procesos excesivos |
-| `-l, --loop / --no-loop` | Modo en vivo |
-| `-s, --short / --no-short` | Vista compacta (bloques con flex-wrap) |
+| `-l, --live / --once` | Modo en vivo (refresco) / one-shot (una vez y sale) |
+| `-s, --short / --full` | Vista compacta (bloques con flex-wrap) / completa |
 | `-n, --top N` | Cantidad de procesos a listar |
-| `--interval S` | Segundos entre refrescos en `--loop` |
+| `--interval S` | Segundos entre refrescos en `--live` |
 | `--theme NOMBRE` | Tema de color: `clasico`, `mono`, `calido`, `alto_contraste`, `flatline`, `custom` |
 | `--theme-custom` | Abre `$EDITOR` en la config para editar la paleta del tema `custom` |
-| `--ram / --cpu / --swap / --vram / --disk / --network` | Toggle de secciones |
+| `--ram / --cpu / --swap / --vram / --disk / --network` | Toggle de secciones (con `--no-*`) |
 | `--top-procs / --top-cpu` | Toggle de top procesos (RAM / sample por CPU) |
 | `--clock / --decor` | Reloj en el divisor / header y divisores |
 | `--no-config` | Ignorar y no tocar la config |
 
-### Teclas en `--loop`
+### Teclas en `--live`
 
 Las teclas `0`–`9` muestran/ocultan cada bloque en vivo; las letras son acciones.
 

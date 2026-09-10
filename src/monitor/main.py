@@ -25,16 +25,12 @@ INSTALL_DIR_EXPECTED = os.path.join(
     os.path.expanduser("~"), ".local", "share", "pc-monitor"
 )
 
-USAGE = """uso: monitor [--update | --check-update | --theme-custom | --uninstall | --version] [opciones de monitoreo]
-
-  (sin argumentos)   imprime el estado del sistema (o entra en --loop según config)
+LIFECYCLE_HELP = """Comandos de autogestión:
   --update           actualiza el paquete (git pull) y sale
   --check-update     verifica si hay versión nueva
   --theme-custom     edita la paleta del tema custom (abre $EDITOR en la config) y sale
   --uninstall        desinstala el paquete (y, si confirmás, la config)
-  --version          imprime la versión instalada
-
-Opciones de monitoreo: monitor [--help]"""
+  --version          imprime la versión instalada"""
 
 
 # ────────────────────────── self-management (CLI) ──────────────────────────
@@ -153,7 +149,7 @@ def _cli_uninstall() -> int:
 # ────────────────────────── monitoreo ──────────────────────────
 
 
-def parse_args(cfg: dict[str, dict[str, object]]) -> argparse.Namespace:
+def build_parser(cfg: dict[str, dict[str, object]]) -> argparse.ArgumentParser:
     g, s = cfg["general"], cfg["sections"]
     p = argparse.ArgumentParser(
         prog="monitor",
@@ -169,17 +165,33 @@ def parse_args(cfg: dict[str, dict[str, object]]) -> argparse.Namespace:
     )
     p.add_argument(
         "-l",
-        "--loop",
-        action=argparse.BooleanOptionalAction,
-        default=g["loop"],
+        "--live",
+        dest="loop",
+        action="store_const",
+        const=True,
         help="Modo en vivo, refresco periódico",
+    )
+    p.add_argument(
+        "--once",
+        dest="loop",
+        action="store_const",
+        const=False,
+        help="Imprime una vez y sale (one-shot)",
     )
     p.add_argument(
         "-s",
         "--short",
-        action=argparse.BooleanOptionalAction,
-        default=g["short"],
+        dest="short",
+        action="store_const",
+        const=True,
         help="Vista compacta",
+    )
+    p.add_argument(
+        "--full",
+        dest="short",
+        action="store_const",
+        const=False,
+        help="Vista completa",
     )
     p.add_argument(
         "-n", "--top", type=int, default=g["top"], help="Cantidad de procesos a listar"
@@ -188,7 +200,7 @@ def parse_args(cfg: dict[str, dict[str, object]]) -> argparse.Namespace:
         "--interval",
         type=float,
         default=g["interval"],
-        help="Segundos entre refrescos en --loop",
+        help="Segundos entre refrescos en --live",
     )
     theme_choices = ", ".join(theme.THEME_NAMES)
     p.add_argument(
@@ -218,7 +230,7 @@ def parse_args(cfg: dict[str, dict[str, object]]) -> argparse.Namespace:
         default=s["vram"],
         help="Incluir sección de VRAM",
     )
-    # toggles de sección extra (control por teclas 0-9 en --loop y por config)
+    # toggles de sección extra (control por teclas 0-9 en --live y por config)
     for key, help_txt in (
         ("ram", "Incluir sección de RAM"),
         ("cpu", "Incluir sección de CPU"),
@@ -228,15 +240,25 @@ def parse_args(cfg: dict[str, dict[str, object]]) -> argparse.Namespace:
         ("decor", "Incluir header y divisores"),
     ):
         p.add_argument(
-            f"--{key}",
+            f"--{key.replace('_', '-')}",
+            dest=key,
             action=argparse.BooleanOptionalAction,
             default=s.get(key, True),
             help=help_txt,
         )
     p.add_argument(
-        "--no-config", action="store_true", help=f"Ignorar/no tocar {CONFIG_PATH}"
+        "--no-config", action="store_true", help="Ignorar y no tocar la config"
     )
-    return p.parse_args()
+    return p
+
+
+def parse_args(cfg: dict[str, dict[str, object]]) -> argparse.Namespace:
+    args = build_parser(cfg).parse_args()
+    if args.loop is None:
+        args.loop = cfg["general"]["loop"]
+    if args.short is None:
+        args.short = cfg["general"]["short"]
+    return args
 
 
 def resolve_theme(
@@ -264,7 +286,15 @@ def resolve_theme(
 def main() -> None:
     argv = sys.argv[1:]
     if "-h" in argv or "--help" in argv:
-        print(USAGE)
+        # no crear config al pedir ayuda: defaults si --no-config
+        cfg = (
+            {k: dict(v) for k, v in DEFAULT_CONFIG.items()}
+            if "--no-config" in argv
+            else load_config()
+        )
+        build_parser(cfg).print_help()
+        print()
+        print(LIFECYCLE_HELP)
         return
     if "--update" in argv:
         sys.exit(_cli_update())

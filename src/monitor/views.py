@@ -1,4 +1,4 @@
-"""Vistas del monitor: info por sección, vista corta, completa y el modo --loop."""
+"""Vistas del monitor: info por sección, vista corta, completa y el modo en vivo (--live)."""
 
 from __future__ import annotations
 
@@ -57,7 +57,7 @@ def divider_with(w: int, center: str = "") -> str:
 
 
 # Colores dinámicos: resuelven el código ANSI del tema activo al imprimirse,
-# así la tecla "t" puede cambiar el tema en vivo dentro de --loop.
+# así la tecla "t" puede cambiar el tema en vivo dentro del modo --live.
 class _ThemeColor(str):
     def __new__(cls, role: str) -> "_ThemeColor":
         obj = super().__new__(cls, "")
@@ -425,7 +425,7 @@ def _restart_process(fd: int, old: object) -> None:
 
 def loop_mode(args: object, threshold_bytes: int) -> None:
     if not sys.stdin.isatty():
-        print("El modo --loop requiere una terminal.", file=sys.stderr)
+        print("El modo en vivo (--live) requiere una terminal.", file=sys.stderr)
         sys.exit(1)
 
     fd = sys.stdin.fileno()

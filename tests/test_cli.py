@@ -22,8 +22,81 @@ def test_help(monkeypatch, capsys):
     monkeypatch.setattr("sys.argv", ["monitor", "--help"])
     main()
     out = capsys.readouterr().out
+    # autogestión
     assert "--uninstall" in out
     assert "--version" in out
+    # monitoreo
+    for flag in (
+        "--live",
+        "--once",
+        "--short",
+        "--full",
+        "--top",
+        "--interval",
+        "--theme",
+        "--ram",
+        "--cpu",
+        "--swap",
+        "--vram",
+        "--disk",
+        "--network",
+        "--top-procs",
+        "--top-cpu",
+        "--clock",
+        "--decor",
+        "--no-config",
+    ):
+        assert flag in out
+
+
+def _parse(argv: list[str]) -> argparse.Namespace:
+    import sys
+
+    from monitor.main import parse_args
+
+    old = sys.argv
+    sys.argv = ["monitor", *argv]
+    try:
+        cfg = {k: dict(v) for k, v in config.DEFAULT_CONFIG.items()}
+        return parse_args(cfg)
+    finally:
+        sys.argv = old
+
+
+def test_parse_once_sets_loop_false():
+    args = _parse(["--once"])
+    assert args.loop is False
+
+
+def test_parse_live_sets_loop_true():
+    args = _parse(["--live"])
+    assert args.loop is True
+
+
+def test_parse_full_sets_short_false():
+    args = _parse(["--full"])
+    assert args.short is False
+
+
+def test_parse_short_sets_short_true():
+    args = _parse(["-s"])
+    assert args.short is True
+
+
+def test_parse_defaults_follow_config():
+    cfg = {k: dict(v) for k, v in config.DEFAULT_CONFIG.items()}
+    from monitor.main import parse_args
+
+    import sys
+
+    old = sys.argv
+    sys.argv = ["monitor"]
+    try:
+        args = parse_args(cfg)
+    finally:
+        sys.argv = old
+    assert args.loop == cfg["general"]["loop"]
+    assert args.short == cfg["general"]["short"]
 
 
 def test_help_footer_includes_update_key():

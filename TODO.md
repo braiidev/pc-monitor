@@ -1,11 +1,12 @@
 # TODO
 
 ## Doing
-- [ ] v0.9.8 feat: toggles 9/0 efectivos (reloj/decor en vistas) + config por pantalla (tecla c)
 
 ## Next
 
 ## Done
+- [x] v0.9.8 feat: toggles 9/0 efectivos (reloj/decor en vistas) + config por pantalla (tecla c)
+- [x] v0.9.9 refactor: normalización flags CLI (--live/--once/--full, --top-procs dasheado) + --help con opciones de monitoreo
 - [x] v0.9.1 fix: loop mode roto (views L384) + TypeError float (L238) + test footer desync
 - [x] v0.9.2 feat: vis_len + flex_wrap (wrap por ancho de terminal) + test_views
 - [x] v0.9.3 feat: short con bloques flex-wrap + reloj en divisor + toast en fila del reloj
