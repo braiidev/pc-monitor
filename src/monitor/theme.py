@@ -20,12 +20,47 @@ import re
 THEME_NAMES = ("clasico", "mono", "calido", "alto_contraste", "flatline", "custom")
 
 THEMES: dict[str, dict[str, str]] = {
-    "clasico": {"bold": "1", "dim": "2", "red": "91", "yellow": "93", "cyan": "96", "green": "92"},
-    "mono":    {"bold": "1", "dim": "2", "red": "", "yellow": "", "cyan": "", "green": ""},
-    "calido":  {"bold": "1", "dim": "2", "red": "91", "yellow": "93", "cyan": "93", "green": "91"},
-    "alto_contraste": {"bold": "1", "dim": "2", "red": "95", "yellow": "95", "cyan": "95", "green": "92"},
-    "flatline": {"bold": "1", "dim": "2", "red": "91", "yellow": "91", "cyan": "96", "green": "91"},
-    "custom":  {"bold": "1", "dim": "2", "red": "91", "yellow": "93", "cyan": "96", "green": "92"},
+    "clasico": {
+        "bold": "1",
+        "dim": "2",
+        "red": "91",
+        "yellow": "93",
+        "cyan": "96",
+        "green": "92",
+    },
+    "mono": {"bold": "1", "dim": "2", "red": "", "yellow": "", "cyan": "", "green": ""},
+    "calido": {
+        "bold": "1",
+        "dim": "2",
+        "red": "91",
+        "yellow": "93",
+        "cyan": "93",
+        "green": "91",
+    },
+    "alto_contraste": {
+        "bold": "1",
+        "dim": "2",
+        "red": "95",
+        "yellow": "95",
+        "cyan": "95",
+        "green": "92",
+    },
+    "flatline": {
+        "bold": "1",
+        "dim": "2",
+        "red": "91",
+        "yellow": "91",
+        "cyan": "96",
+        "green": "91",
+    },
+    "custom": {
+        "bold": "1",
+        "dim": "2",
+        "red": "91",
+        "yellow": "93",
+        "cyan": "96",
+        "green": "92",
+    },
 }
 
 RESET_CODE = "0"
@@ -60,7 +95,9 @@ def set_custom_palette(palette: dict[str, object]) -> None:
     _custom_palette = {}
     for role in CUSTOM_ROLES:
         code = palette.get(role, base[role])
-        _custom_palette[role] = str(code).strip().strip('"') if valid_code(code) else base[role]
+        _custom_palette[role] = (
+            str(code).strip().strip('"') if valid_code(code) else base[role]
+        )
 
 
 def custom_palette() -> dict[str, str]:

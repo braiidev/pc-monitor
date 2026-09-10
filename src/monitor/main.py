@@ -9,13 +9,21 @@ import subprocess
 import sys
 
 from monitor import __version__, theme
-from monitor.config import CONFIG_PATH, DEFAULT_CONFIG, LEGACY_CONFIG_PATH, load_config, save_config
+from monitor.config import (
+    CONFIG_PATH,
+    DEFAULT_CONFIG,
+    LEGACY_CONFIG_PATH,
+    load_config,
+    save_config,
+)
 from monitor.update import check_update, do_update, repo_root
 from monitor import views
 
 BIN_DIR = os.path.join(os.path.expanduser("~"), ".local", "bin")
 BIN_PATH = os.path.join(BIN_DIR, "monitor")
-INSTALL_DIR_EXPECTED = os.path.join(os.path.expanduser("~"), ".local", "share", "pc-monitor")
+INSTALL_DIR_EXPECTED = os.path.join(
+    os.path.expanduser("~"), ".local", "share", "pc-monitor"
+)
 
 USAGE = """uso: monitor [--update | --check-update | --theme-custom | --uninstall | --version] [opciones de monitoreo]
 
@@ -30,6 +38,7 @@ Opciones de monitoreo: monitor [--help]"""
 
 
 # ────────────────────────── self-management (CLI) ──────────────────────────
+
 
 def _cli_theme_custom() -> int:
     """Abre la config en el editor para editar la paleta del tema custom."""
@@ -51,13 +60,24 @@ def _cli_theme_custom() -> int:
 
     cfg = load_config()
     theme.set_custom_palette(cfg.get("custom", {}))
-    bad = {r: cfg["custom"][r] for r in theme.CUSTOM_ROLES if not theme.valid_code(cfg["custom"].get(r))}
+    bad = {
+        r: cfg["custom"][r]
+        for r in theme.CUSTOM_ROLES
+        if not theme.valid_code(cfg["custom"].get(r))
+    }
     cfg["custom"] = dict(theme.custom_palette())  # normaliza roles inválidos a clasico
     save_config(cfg)
     if bad:
-        print("⚠ Valores inválidos corregidos a clasico:", ", ".join(f"{k}={v!r}" for k, v in bad.items()))
-    print("✓ Tema custom actualizado:", ", ".join(f"{k}={theme.custom_palette()[k]}" for k in theme.CUSTOM_ROLES))
+        print(
+            "⚠ Valores inválidos corregidos a clasico:",
+            ", ".join(f"{k}={v!r}" for k, v in bad.items()),
+        )
+    print(
+        "✓ Tema custom actualizado:",
+        ", ".join(f"{k}={theme.custom_palette()[k]}" for k in theme.CUSTOM_ROLES),
+    )
     return 0
+
 
 def _cli_update() -> int:
     res = do_update(repo_root())
@@ -71,7 +91,9 @@ def _cli_check_update() -> int:
         print(f"⚠ No se pudo verificar: {info.error}", file=sys.stderr)
         return 1
     if info.behind > 0:
-        print(f"→ Hay una actualización disponible ({info.available}). Ejecutá: monitor --update")
+        print(
+            f"→ Hay una actualización disponible ({info.available}). Ejecutá: monitor --update"
+        )
     else:
         print(f"✓ Estás al día ({info.current})")
     return 0
@@ -130,6 +152,7 @@ def _cli_uninstall() -> int:
 
 # ────────────────────────── monitoreo ──────────────────────────
 
+
 def parse_args(cfg: dict[str, dict[str, object]]) -> argparse.Namespace:
     g, s = cfg["general"], cfg["sections"]
     p = argparse.ArgumentParser(
@@ -144,34 +167,93 @@ def parse_args(cfg: dict[str, dict[str, object]]) -> argparse.Namespace:
         default=g["threshold"],
         help=f"Umbral en GB de RAM para marcar procesos como excesivos (default: {g['threshold']})",
     )
-    p.add_argument("-l", "--loop", action=argparse.BooleanOptionalAction, default=g["loop"],
-                    help="Modo en vivo, refresco periódico")
-    p.add_argument("-s", "--short", action=argparse.BooleanOptionalAction, default=g["short"],
-                    help="Vista compacta")
-    p.add_argument("-n", "--top", type=int, default=g["top"], help="Cantidad de procesos a listar")
-    p.add_argument("--interval", type=float, default=g["interval"], help="Segundos entre refrescos en --loop")
+    p.add_argument(
+        "-l",
+        "--loop",
+        action=argparse.BooleanOptionalAction,
+        default=g["loop"],
+        help="Modo en vivo, refresco periódico",
+    )
+    p.add_argument(
+        "-s",
+        "--short",
+        action=argparse.BooleanOptionalAction,
+        default=g["short"],
+        help="Vista compacta",
+    )
+    p.add_argument(
+        "-n", "--top", type=int, default=g["top"], help="Cantidad de procesos a listar"
+    )
+    p.add_argument(
+        "--interval",
+        type=float,
+        default=g["interval"],
+        help="Segundos entre refrescos en --loop",
+    )
     theme_choices = ", ".join(theme.THEME_NAMES)
-    p.add_argument("--theme", default=g["theme"],
-                    help=f"Tema de color ({theme_choices})")
-    p.add_argument("--disk", action=argparse.BooleanOptionalAction, default=s["disk"],
-                    help="Incluir uso de disco (espacio + I/O)")
-    p.add_argument("--network", action=argparse.BooleanOptionalAction, default=s["network"],
-                    help="Incluir uso de red (rx/tx)")
-    p.add_argument("--swap", action=argparse.BooleanOptionalAction, default=s["swap"],
-                    help="Incluir sección de SWAP")
-    p.add_argument("--vram", action=argparse.BooleanOptionalAction, default=s["vram"],
-                    help="Incluir sección de VRAM")
-    p.add_argument("--no-config", action="store_true", help=f"Ignorar/no tocar {CONFIG_PATH}")
+    p.add_argument(
+        "--theme", default=g["theme"], help=f"Tema de color ({theme_choices})"
+    )
+    p.add_argument(
+        "--disk",
+        action=argparse.BooleanOptionalAction,
+        default=s["disk"],
+        help="Incluir uso de disco (espacio + I/O)",
+    )
+    p.add_argument(
+        "--network",
+        action=argparse.BooleanOptionalAction,
+        default=s["network"],
+        help="Incluir uso de red (rx/tx)",
+    )
+    p.add_argument(
+        "--swap",
+        action=argparse.BooleanOptionalAction,
+        default=s["swap"],
+        help="Incluir sección de SWAP",
+    )
+    p.add_argument(
+        "--vram",
+        action=argparse.BooleanOptionalAction,
+        default=s["vram"],
+        help="Incluir sección de VRAM",
+    )
+    # toggles de sección extra (control por teclas 0-9 en --loop y por config)
+    for key, help_txt in (
+        ("ram", "Incluir sección de RAM"),
+        ("cpu", "Incluir sección de CPU"),
+        ("top_procs", "Incluir top procesos por RAM"),
+        ("top_cpu", "Incluir top procesos por CPU"),
+        ("clock", "Incluir reloj en el divisor"),
+        ("decor", "Incluir header y divisores"),
+    ):
+        p.add_argument(
+            f"--{key}",
+            action=argparse.BooleanOptionalAction,
+            default=s.get(key, True),
+            help=help_txt,
+        )
+    p.add_argument(
+        "--no-config", action="store_true", help=f"Ignorar/no tocar {CONFIG_PATH}"
+    )
     return p.parse_args()
 
 
-def resolve_theme(argv: list[str], args: argparse.Namespace, cfg: dict[str, dict[str, object]], no_config: bool) -> str:
+def resolve_theme(
+    argv: list[str],
+    args: argparse.Namespace,
+    cfg: dict[str, dict[str, object]],
+    no_config: bool,
+) -> str:
     """Valida el theme. Tema de config viejo/roto -> fallback silencioso a 'clasico'
     (y corrige el archivo). Solo --theme explícito inválido da error (SystemExit)."""
     if theme.is_theme(args.theme):
         return args.theme
     if "--theme" in argv:
-        print(f"Tema desconocido: {args.theme!r} ({', '.join(theme.THEME_NAMES)})", file=sys.stderr)
+        print(
+            f"Tema desconocido: {args.theme!r} ({', '.join(theme.THEME_NAMES)})",
+            file=sys.stderr,
+        )
         raise SystemExit(1)
     if not no_config:
         cfg["general"]["theme"] = "clasico"
@@ -197,8 +279,12 @@ def main() -> None:
         return
 
     no_config = "--no-config" in argv
-    cfg = {k: dict(v) for k, v in DEFAULT_CONFIG.items()} if no_config else load_config()
-    theme.set_custom_palette(cfg.get("custom", {}))  # paleta del tema custom desde config
+    cfg = (
+        {k: dict(v) for k, v in DEFAULT_CONFIG.items()} if no_config else load_config()
+    )
+    theme.set_custom_palette(
+        cfg.get("custom", {})
+    )  # paleta del tema custom desde config
     args = parse_args(cfg)
     if args.threshold <= 0:
         print("El umbral debe ser un número mayor a 0.", file=sys.stderr)
@@ -207,7 +293,7 @@ def main() -> None:
     # silencioso a clasico y corregir el archivo. Solo --theme explícito inválido da error.
     args.theme = resolve_theme(argv, args, cfg, no_config)
     theme.ACTIVE = args.theme
-    threshold_bytes = int(args.threshold * 1024 ** 3)
+    threshold_bytes = int(args.threshold * 1024**3)
 
     try:
         if args.loop:

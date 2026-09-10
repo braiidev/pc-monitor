@@ -41,7 +41,9 @@ def cpu_pct_from_lines(before: list[str], after: list[str]) -> dict[str, float]:
 def read_vram() -> list[tuple[str, int, int]]:
     """Devuelve (label, total, usada) por GPU expuesta en sysfs."""
     out: list[tuple[str, int, int]] = []
-    for p in sorted(SYSFS_PATH.joinpath("class/drm").glob("card*/device/mem_info_vram_total")):
+    for p in sorted(
+        SYSFS_PATH.joinpath("class/drm").glob("card*/device/mem_info_vram_total")
+    ):
         card = p.parent.parent.name
         try:
             total = int(p.read_text().strip())

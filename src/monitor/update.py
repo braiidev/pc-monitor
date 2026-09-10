@@ -26,8 +26,12 @@ def repo_root() -> str:
     return str(Path(__file__).resolve().parents[2])
 
 
-def _git(repo: str, args: list[str], timeout: int = GIT_TIMEOUT) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(["git", *args], cwd=repo, capture_output=True, text=True, timeout=timeout)
+def _git(
+    repo: str, args: list[str], timeout: int = GIT_TIMEOUT
+) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["git", *args], cwd=repo, capture_output=True, text=True, timeout=timeout
+    )
 
 
 def _describe(repo: str, rev: str) -> str:
@@ -96,7 +100,9 @@ def do_update(repo: str) -> UpdateResult:
     reset = _git(repo, ["reset", "--hard", "origin/main"], timeout=15)
     if reset.returncode == 0:
         _pip_reinstall(repo)
-        return UpdateResult(True, f"Actualizado a {info.available} (historial corregido) — reiniciá")
+        return UpdateResult(
+            True, f"Actualizado a {info.available} (historial corregido) — reiniciá"
+        )
     return UpdateResult(False, f"Falló el pull: {pull.stderr.strip()}")
 
 

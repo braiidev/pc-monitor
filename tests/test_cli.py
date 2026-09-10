@@ -27,7 +27,14 @@ def test_help(monkeypatch, capsys):
 
 
 def test_help_footer_includes_update_key():
-    assert "[u] update" in views.HELP_FOOTER
+    assert "[u]update" in views.HELP_FOOTER
+
+
+def test_help_footer_lists_all_toggle_keys():
+    for k in views.TOGGLE_KEYS:
+        assert f"[{k}]" in views.HELP_FOOTER
+    for action in ("m", "c", "t", "?", "q"):
+        assert f"[{action}]" in views.HELP_FOOTER
 
 
 def _ns(theme: str) -> argparse.Namespace:
@@ -98,7 +105,7 @@ def test_cli_theme_custom_normalizes_invalid(tmp_path, monkeypatch, capsys):
     out = capsys.readouterr().out
     assert "Valores inválidos" in out
     again = config.load_config()
-    assert again["custom"]["red"] == "91"   # caen a clasico
+    assert again["custom"]["red"] == "91"  # caen a clasico
     assert again["custom"]["cyan"] == "96"
 
 
@@ -134,7 +141,11 @@ def test_apply_update_noop_when_up_to_date(monkeypatch, capsys):
     info = update.UpdateInfo(ok=True, behind=0, current="v0.2", available="v0.2")
     monkeypatch.setattr(update, "check_update", lambda repo: info)
     called = []
-    monkeypatch.setattr(update, "do_update", lambda repo: called.append(repo) or update.UpdateResult(True, "x"))
+    monkeypatch.setattr(
+        update,
+        "do_update",
+        lambda repo: called.append(repo) or update.UpdateResult(True, "x"),
+    )
     views._apply_update()
     out = capsys.readouterr().out
     assert "Estás al día" in out

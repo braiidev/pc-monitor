@@ -45,22 +45,37 @@ monitor --disk --network   # incluir disco y red
 |---|---|
 | `threshold` | Umbral en GB de RAM para marcar procesos excesivos |
 | `-l, --loop / --no-loop` | Modo en vivo |
-| `-s, --short / --no-short` | Vista compacta |
+| `-s, --short / --no-short` | Vista compacta (bloques con flex-wrap) |
 | `-n, --top N` | Cantidad de procesos a listar |
 | `--interval S` | Segundos entre refrescos en `--loop` |
 | `--theme NOMBRE` | Tema de color: `clasico`, `mono`, `calido`, `alto_contraste`, `flatline`, `custom` |
 | `--theme-custom` | Abre `$EDITOR` en la config para editar la paleta del tema `custom` |
-| `--disk / --network / --swap / --vram` | Toggle de secciones |
+| `--ram / --cpu / --swap / --vram / --disk / --network` | Toggle de secciones |
+| `--top-procs / --top-cpu` | Toggle de top procesos (RAM / sample por CPU) |
+| `--clock / --decor` | Reloj en el divisor / header y divisores |
 | `--no-config` | Ignorar y no tocar la config |
 
 ### Teclas en `--loop`
 
+Las teclas `0`–`9` muestran/ocultan cada bloque en vivo; las letras son acciones.
+
 | Tecla | Acción |
 |---|---|
-| `1`–`5` | Vista corta / Disco / Red / Swap / VRAM |
+| `1`–`8` | Toggle RAM / CPU / Swap / VRAM / Disco / Red / Top RAM / Top CPU |
+| `9` / `0` | Toggle reloj en el divisor / header y divisores |
+| `m` | Cambiar entre vista completa y compacta |
+| `c` | Editar `threshold`, `top` e `interval` (números separados por espacio) |
 | `t` | Cambiar tema de color (muestra el nombre y se guarda en la config) |
-| `?` | Ayuda |
+| `u` | Actualizar el paquete y re-ejecutar |
+| `?` | Ayuda (atajos en el divisor inferior) |
 | `q` | Salir |
+
+### Vistas
+
+- **Completa** (`monitor`): secciones agrupadas `── TÍTULO ──` con 1–2 líneas de datos.
+- **Compacta** (`monitor -s`): cada sección es un bloque de ancho variable; los bloques se acomodan en filas según el ancho de la terminal (flex-wrap) y "cae" a la línea siguiente cuando no entra.
+
+En ambas, el divisor inferior muestra el reloj (o el toast temporal al cambiar tema/elemento).
 
 ## Configuración
 
@@ -76,10 +91,16 @@ interval = 2.0
 theme = "clasico"
 
 [sections]
-disk = false
-network = false
+ram = true
+cpu = true
 swap = true
 vram = true
+disk = false
+network = false
+top_procs = true
+top_cpu = true
+clock = true
+decor = true
 
 # Tema custom: paleta del tema `custom` (editable con `monitor --theme-custom`)
 [custom]

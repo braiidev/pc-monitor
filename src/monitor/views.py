@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import os
+import re
 import select
 import shutil
 import sys
@@ -13,6 +14,47 @@ import time
 from monitor import formatting as fmt
 from monitor import readers
 from monitor import theme
+
+_ANSI = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def vis_len(s: str) -> int:
+    """Largo visible de un string con códigos ANSI (los escapes no cuentan)."""
+    return len(_ANSI.sub("", s))
+
+
+def flex_wrap(blocks: list[str], tw: int, gap: int = 2) -> list[str]:
+    """Acomoda bloques de ancho variable en líneas de `tw` cols, con `gap` de separación.
+    Un bloque más ancho que `tw` se mantiene entero (nunca se corta a mitad de ANSI)."""
+    lines: list[str] = []
+    line: list[str] = []
+    used = 0
+    for b in blocks:
+        bw = vis_len(b)
+        if line and used + gap + bw > tw:
+            lines.append((" " * gap).join(line))
+            line, used = [], 0
+        if line:
+            used += gap
+        line.append(b)
+        used += bw
+    if line:
+        lines.append((" " * gap).join(line))
+    return lines
+
+
+def divider_with(w: int, center: str = "") -> str:
+    """Divisor de w columnas con un texto centrado entre '─'."""
+    if not center:
+        return f"{DIM}{'─' * w}{RESET}"
+    cw = vis_len(center)
+    if cw >= w:
+        return center
+    sides = w - cw
+    left = sides // 2
+    right = sides - left
+    return f"{DIM}{'─' * left}{RESET}{center}{DIM}{'─' * right}{RESET}"
+
 
 # Colores dinámicos: resuelven el código ANSI del tema activo al imprimirse,
 # así la tecla "t" puede cambiar el tema en vivo dentro de --loop.
@@ -38,49 +80,6 @@ GREEN = _ThemeColor("green")
 RESET = _ThemeColor("reset")
 
 
-def section(title: str) -> None:
-    print(f"\n{BOLD}{CYAN}── {title} ──{RESET}")
-
-
-# ────────────────────────── secciones ──────────────────────────
-
-def ram_info(mi: dict[str, int]) -> None:
-    total = mi["MemTotal"]
-    free = mi["MemFree"]
-    avail = mi["MemAvailable"]
-    used = total - avail
-    section("RAM")
-    print(f"  Total:     {fmt.fmt_size(total)}")
-    print(f"  Usada:     {fmt.fmt_size(used)}  ({fmt.fmt_pct(used / total * 100)})")
-    print(f"  Disponible:{GREEN} {fmt.fmt_size(avail)}{RESET}")
-    print(f"  Libre:     {fmt.fmt_size(free)}")
-
-
-def swap_info(mi: dict[str, int]) -> None:
-    total = mi.get("SwapTotal", 0)
-    if not total:
-        return
-    free = mi.get("SwapFree", 0)
-    used = total - free
-    section("SWAP")
-    print(f"  Total: {fmt.fmt_size(total)}")
-    print(f"  Usada: {fmt.fmt_size(used)}  ({fmt.fmt_pct(used / total * 100)})")
-    print(f"  Libre: {fmt.fmt_size(free)}")
-
-
-def vram_info() -> None:
-    vram = readers.read_vram()
-    if not vram:
-        return
-    section("VRAM")
-    for card, total, used in vram:
-        label = "dGPU" if total >= 1024 ** 3 else "iGPU"
-        print(f"  {card} {label}:")
-        print(f"    Total: {fmt.fmt_size(total)}")
-        print(f"    Usada: {fmt.fmt_size(used)}  ({fmt.fmt_pct(used / total * 100)})")
-        print(f"    Libre: {GREEN}{fmt.fmt_size(total - used)}{RESET}")
-
-
 def _bar(pct: float) -> tuple[str, str]:
     """Devuelve (bloque coloreado, color) según el porcentaje de uso."""
     color = GREEN if pct < 50 else YELLOW if pct < 80 else RED
@@ -88,197 +87,273 @@ def _bar(pct: float) -> tuple[str, str]:
     return bar, color
 
 
-def cpu_info(sample_seconds: float = 0.2) -> None:
-    section("CPU")
-    with open("/proc/loadavg") as f:
-        load = f.read().strip()
-    print(f"  Load: {load}")
-    cores = os.cpu_count() or 0
-    print(f"  Núcleos: {cores}")
-
-    before = readers.read_cpu_lines()
-    time.sleep(sample_seconds)
-    after = readers.read_cpu_lines()
-    pct_by_core = readers.cpu_pct_from_lines(before, after)
-
-    for cid, use_pct in pct_by_core.items():
-        if cid == "cpu":
-            continue  # se muestra el agregado por separado abajo
-        bar, color = _bar(use_pct)
-        print(f"  {cid}: {color}{bar}{RESET} {fmt.fmt_pct(use_pct)}")
-
-    if "cpu" in pct_by_core:
-        total_pct = pct_by_core["cpu"]
-        _, color = _bar(total_pct)
-        print(f"  {DIM}Total: {color}{fmt.fmt_pct(total_pct)}{RESET}")
-
-
-def disk_info(sample_seconds: float = 0.2) -> None:
-    section("DISCO")
-    usage = shutil.disk_usage("/")
-    used_pct = usage.used / usage.total * 100 if usage.total else 0
-    print(f"  / Total:  {fmt.fmt_size(usage.total)}")
-    print(f"  / Usado:  {fmt.fmt_size(usage.used)}  ({fmt.fmt_pct(used_pct)})")
-    print(f"  / Libre:  {GREEN}{fmt.fmt_size(usage.free)}{RESET}")
-
-    before = readers.disk_stats()
-    time.sleep(sample_seconds)
-    after = readers.disk_stats()
-    for name, (r_after, w_after) in after.items():
-        r_before, w_before = before.get(name, (r_after, w_after))
-        read_rate = (r_after - r_before) / sample_seconds
-        write_rate = (w_after - w_before) / sample_seconds
-        if read_rate or write_rate:
-            print(f"  {name}: {CYAN}R {fmt.fmt_rate(read_rate)}{RESET}  {YELLOW}W {fmt.fmt_rate(write_rate)}{RESET}")
-
-
-def network_info(sample_seconds: float = 0.2) -> None:
-    section("RED")
-    before = readers.net_stats()
-    time.sleep(sample_seconds)
-    after = readers.net_stats()
-    if not after:
-        print(f"  {DIM}Sin interfaces activas{RESET}")
-        return
-    for iface, (rx_after, tx_after) in after.items():
-        rx_before, tx_before = before.get(iface, (rx_after, tx_after))
-        rx_rate = (rx_after - rx_before) / sample_seconds
-        tx_rate = (tx_after - tx_before) / sample_seconds
-        print(f"  {iface}: {GREEN}↓ {fmt.fmt_rate(rx_rate)}{RESET}  {YELLOW}↑ {fmt.fmt_rate(tx_rate)}{RESET}")
-
-
-# ────────────────────────── procesos ──────────────────────────
-
-def print_warning(procs: list[tuple[int, str, str]], threshold_gb: float, threshold_bytes: int) -> None:
-    over = [p for p in procs if p[0] >= threshold_bytes]
-    if over:
-        print(f"\n{RED}{BOLD}⚠  Procesos que exceden {threshold_gb}GB de RAM:{RESET}")
-        for rss, pid, name in over:
-            print(f"  {RED}{fmt.fmt_size(rss):>8}{RESET}  PID {pid:<6}  {name}")
-    else:
-        print(f"\n{GREEN}✓ Ningún proceso excede {threshold_gb}GB de RAM.{RESET}")
-
-
-def show_procs(
-    procs: list[tuple[int, str, str]], threshold_gb: float, threshold_bytes: int, limit: int = 5
-) -> None:
-    if not procs:
-        return
-    section(f"TOP {limit} RAM")
-    for rss, pid, name in procs[:limit]:
-        color = RED if rss >= threshold_bytes else ""
-        flag = f" {RED}⚠ >{threshold_gb}GB{RESET}" if rss >= threshold_bytes else ""
-        print(f"  {color}{fmt.fmt_size(rss):>8}{RESET}  {pid:<6} {name}{flag}")
-    print_warning(procs, threshold_gb, threshold_bytes)
-
-
-def top_processes(
-    threshold_gb: float, threshold_bytes: int, limit: int = 5, cpu_sample_seconds: float = 0.1
-) -> None:
-    procs = readers.read_procs()
-    show_procs(procs, threshold_gb, threshold_bytes, limit)
-
-    section("TOP procesos por CPU (sample)")
-    candidates = procs[:40]  # limitar el sampleo a los de mayor RSS por costo
-    t1 = {pid: readers.cpu_time(pid) for _, pid, _ in candidates}
-    time.sleep(cpu_sample_seconds)
-
-    cpu_procs: list[tuple[float, str, str, int]] = []
-    for rss, pid, name in candidates:
-        before = t1.get(pid)
-        after = readers.cpu_time(pid)
-        if before is None or after is None:
-            continue
-        pct = (after - before) / cpu_sample_seconds  # jiffies (1/100s) -> % aprox
-        cpu_procs.append((pct, pid, name, rss))
-    cpu_procs.sort(reverse=True)
-
-    for pct, pid, name, rss in cpu_procs[:limit]:
-        color = RED if rss >= threshold_bytes else ""
-        flag = f" {RED}⚠ >{threshold_gb}GB{RESET}" if rss >= threshold_bytes else ""
-        print(f"  {color}{fmt.fmt_pct(pct):>7}{RESET}  PID {pid:<6} {name}{flag}")
+def _group(title: str, blocks: list[str], w: int) -> None:
+    print(f"{BOLD}{CYAN}── {title} ──{RESET}")
+    for line in flex_wrap(blocks, w):
+        print(line)
 
 
 # ────────────────────────── vistas ──────────────────────────
 
-def full_info(args: object, threshold_bytes: int) -> None:
-    mi = readers.read_meminfo()
-    ram_info(mi)
-    if args.swap:
-        swap_info(mi)
-    if args.vram:
-        vram_info()
-    cpu_info()
-    if args.disk:
-        disk_info()
-    if args.network:
-        network_info()
-    top_processes(args.threshold, threshold_bytes, limit=args.top)
-    print()
 
-
-def short_info(args: object, threshold_bytes: int) -> None:
-    tw, _ = shutil.get_terminal_size((40, 20))
-    w = min(tw, 40)
-    sep = f"{DIM}{'─' * w}{RESET}"
-    pr = lambda s: print(s[:w])
+def full_info(args: object, threshold_bytes: int, footer: str = "") -> None:
+    tw, _ = shutil.get_terminal_size((80, 30))
+    w = tw
+    print(divider_with(w, f" {CYAN}MONITOR{RESET} "))
 
     mi = readers.read_meminfo()
-
-    pr(sep)
     total = mi["MemTotal"]
-    used = total - mi["MemAvailable"]
-    pr(f"  {CYAN}RAM{RESET} {fmt.fmt_short(used):>6}/{fmt.fmt_short(total):<6} {used / total * 100:.1f}%")
 
-    with open("/proc/loadavg") as f:
-        load = f.read().strip().split()[0]
-    pr(f"  {CYAN}CPU{RESET} {load:>5}  {os.cpu_count() or 0}c")
+    if getattr(args, "ram", True):
+        used = total - mi["MemAvailable"]
+        free = mi["MemFree"]
+        print(f"{BOLD}{CYAN}── RAM ──{RESET}")
+        for line in flex_wrap(
+            [
+                f"  Usada {fmt.fmt_short(used):>5}/{fmt.fmt_short(total):<5} {used / total * 100:.1f}%",
+                f"  Libre {GREEN}{fmt.fmt_short(free)}{RESET}",
+            ],
+            w,
+        ):
+            print(line)
+        print(
+            f"  {CYAN}Disponible{RESET} {GREEN}{fmt.fmt_short(mi['MemAvailable'])}{RESET}"
+        )
 
-    if args.swap:
+    if getattr(args, "swap", False):
         swap_total = mi.get("SwapTotal", 0)
         if swap_total:
             swap_used = swap_total - mi.get("SwapFree", 0)
-            pr(f"  {YELLOW}SWP{RESET} {fmt.fmt_short(swap_used):>6}/{fmt.fmt_short(swap_total):<6} {swap_used / swap_total * 100:.1f}%")
+            print(f"{BOLD}{CYAN}── SWAP ──{RESET}")
+            for line in flex_wrap(
+                [
+                    f"  Usada {fmt.fmt_short(swap_used):>5}/{fmt.fmt_short(swap_total):<5} {swap_used / swap_total * 100:.1f}%",
+                    f"  Libre {fmt.fmt_short(mi.get('SwapFree', 0))}",
+                ],
+                w,
+            ):
+                print(line)
 
-    if args.vram:
-        for card, vt, vu in readers.read_vram():
-            pr(f"  {DIM}GPU{RESET} {fmt.fmt_short(vu):>6}/{fmt.fmt_short(vt):<6} {vu / vt * 100:.1f}%")
+    if getattr(args, "vram", False):
+        vram = readers.read_vram()
+        if vram:
+            print(f"{BOLD}{CYAN}── VRAM ──{RESET}")
+            blocks: list[str] = []
+            for card, vt, vu in vram:
+                label = "dGPU" if vt >= 1024**3 else "iGPU"
+                blocks.append(
+                    f"  {card} {label} {fmt.fmt_short(vu):>5}/{fmt.fmt_short(vt):<5} {vu / vt * 100:.1f}%"
+                )
+            for line in flex_wrap(blocks, w):
+                print(line)
 
-    if args.disk:
+    if getattr(args, "cpu", True):
+        print(f"{BOLD}{CYAN}── CPU ──{RESET}")
+        with open("/proc/loadavg") as f:
+            load = f.read().strip()
+        before = readers.read_cpu_lines()
+        time.sleep(0.2)
+        after = readers.read_cpu_lines()
+        pct_by_core = readers.cpu_pct_from_lines(before, after)
+        total_pct = pct_by_core.get("cpu", 0.0)
+        print(
+            f"  Load {load.split()[0]} · {os.cpu_count() or 0}c · {DIM}Total {total_pct:.1f}%{RESET}"
+        )
+        core_blocks: list[str] = []
+        for cid, use_pct in pct_by_core.items():
+            if cid == "cpu":
+                continue
+            bar, color = _bar(use_pct)
+            core_blocks.append(f"  {color}{bar}{RESET} {cid} {fmt.fmt_pct(use_pct)}")
+        for line in flex_wrap(core_blocks, w):
+            print(line)
+
+    if getattr(args, "disk", False):
         usage = shutil.disk_usage("/")
-        pr(f"  {CYAN}DSK{RESET} {fmt.fmt_short(usage.used):>6}/{fmt.fmt_short(usage.total):<6} {usage.used / usage.total * 100:.1f}%")
+        used_pct = usage.used / usage.total * 100 if usage.total else 0
+        print(f"{BOLD}{CYAN}── DISCO ──{RESET}")
+        for line in flex_wrap(
+            [
+                f"  / {fmt.fmt_short(usage.used):>5}/{fmt.fmt_short(usage.total):<5} {used_pct:.1f}%",
+                f"  Libre {GREEN}{fmt.fmt_short(usage.free)}{RESET}",
+            ],
+            w,
+        ):
+            print(line)
+        before = readers.disk_stats()
+        time.sleep(0.2)
+        after = readers.disk_stats()
+        io_blocks: list[str] = []
+        for name, (r_after, w_after) in after.items():
+            r_before, w_before = before.get(name, (r_after, w_after))
+            read_rate = (r_after - r_before) / 0.2
+            write_rate = (w_after - w_before) / 0.2
+            if read_rate or write_rate:
+                io_blocks.append(
+                    f"  {name}: {CYAN}R {fmt.fmt_rate(read_rate)}{RESET} {YELLOW}W {fmt.fmt_rate(write_rate)}{RESET}"
+                )
+        for line in flex_wrap(io_blocks, w):
+            print(line)
 
-    if args.network:
+    if getattr(args, "network", False):
+        print(f"{BOLD}{CYAN}── RED ──{RESET}")
+        before = readers.net_stats()
+        time.sleep(0.2)
+        after = readers.net_stats()
+        if after:
+            net_blocks: list[str] = []
+            for iface, (rx_after, tx_after) in after.items():
+                rx_before, tx_before = before.get(iface, (rx_after, tx_after))
+                rx_rate = (rx_after - rx_before) / 0.2
+                tx_rate = (tx_after - tx_before) / 0.2
+                net_blocks.append(
+                    f"  {iface}: {GREEN}↓ {fmt.fmt_rate(rx_rate)}{RESET} {YELLOW}↑ {fmt.fmt_rate(tx_rate)}{RESET}"
+                )
+            for line in flex_wrap(net_blocks, w):
+                print(line)
+        else:
+            print(f"  {DIM}Sin interfaces activas{RESET}")
+
+    procs = readers.read_procs()
+    if getattr(args, "top_procs", True):
+        pblocks = []
+        for rss, pid, name in procs[:3]:
+            color = RED if rss >= threshold_bytes else ""
+            pblocks.append(f"  {color}{fmt.fmt_short(rss):>6}{RESET} {pid:<6} {name}")
+        _group("TOP RAM", pblocks, w)
+
+    if getattr(args, "top_cpu", True):
+        candidates = procs[:40]
+        t1 = {pid: readers.cpu_time(pid) for _, pid, _ in candidates}
+        time.sleep(0.1)
+        cpu_procs: list[tuple[float, str, str]] = []
+        for rss, pid, name in candidates:
+            before_t, after_t = t1.get(pid), readers.cpu_time(pid)
+            if before_t is None or after_t is None:
+                continue
+            cpu_procs.append(((after_t - before_t) / 0.1, pid, name))
+        cpu_procs.sort(reverse=True)
+        cblocks = [f"  {fmt.fmt_pct(pct):>7} {name}" for pct, _, name in cpu_procs[:3]]
+        _group("TOP CPU", cblocks, w)
+
+    print(divider_with(w, footer))
+
+
+def short_info(args: object, threshold_bytes: int, footer: str = "") -> None:
+    tw, _ = shutil.get_terminal_size((40, 20))
+    w = min(tw, 40)
+    sep = divider_with(w)
+    head = divider_with(w, f" {CYAN}MONITOR{RESET} ")
+
+    blocks: list[str] = []
+    mi = readers.read_meminfo()
+
+    total = mi["MemTotal"]
+    if getattr(args, "ram", True):
+        used = total - mi["MemAvailable"]
+        blocks.append(
+            f"  {CYAN}RAM{RESET} {fmt.fmt_short(used):>6}/{fmt.fmt_short(total):<6} {used / total * 100:.1f}%"
+        )
+
+    if getattr(args, "cpu", True):
+        with open("/proc/loadavg") as f:
+            load = f.read().strip().split()[0]
+        blocks.append(f"  {CYAN}CPU{RESET} {load:>5}  {os.cpu_count() or 0}c")
+
+    if getattr(args, "swap", False):
+        swap_total = mi.get("SwapTotal", 0)
+        if swap_total:
+            swap_used = swap_total - mi.get("SwapFree", 0)
+            blocks.append(
+                f"  {YELLOW}SWP{RESET} {fmt.fmt_short(swap_used):>6}/{fmt.fmt_short(swap_total):<6} {swap_used / swap_total * 100:.1f}%"
+            )
+
+    if getattr(args, "vram", False):
+        for card, vt, vu in readers.read_vram():
+            blocks.append(
+                f"  {DIM}GPU{RESET} {fmt.fmt_short(vu):>6}/{fmt.fmt_short(vt):<6} {vu / vt * 100:.1f}%"
+            )
+
+    if getattr(args, "disk", False):
+        usage = shutil.disk_usage("/")
+        blocks.append(
+            f"  {CYAN}DSK{RESET} {fmt.fmt_short(usage.used):>6}/{fmt.fmt_short(usage.total):<6} {usage.used / usage.total * 100:.1f}%"
+        )
+
+    if getattr(args, "network", False):
         before = readers.net_stats()
         time.sleep(0.2)
         after = readers.net_stats()
         rx = sum(a[0] - before.get(i, a)[0] for i, a in after.items()) / 0.2
         tx = sum(a[1] - before.get(i, a)[1] for i, a in after.items()) / 0.2
-        pr(f"  {CYAN}NET{RESET} ↓{fmt.fmt_short(rx)}/s ↑{fmt.fmt_short(tx)}/s")
+        blocks.append(
+            f"  {CYAN}NET{RESET} ↓{fmt.fmt_short(rx)}/s ↑{fmt.fmt_short(tx)}/s"
+        )
+
+    print(head)
+    for line in flex_wrap(blocks, w):
+        print(line)
 
     procs = readers.read_procs(10)
-
-    pr(sep)
+    print(sep)
+    pblocks: list[str] = []
     for rss, _, name in procs[:3]:
         txt = f"  {fmt.fmt_short(rss):>6}  {name}"[: w - 2]
-        print(f" {'':1}{RED}{txt}{RESET}" if rss >= threshold_bytes else f" {'':1}{txt}")
+        pblocks.append(f" {RED}{txt}{RESET}" if rss >= threshold_bytes else f" {txt}")
+    for line in flex_wrap(pblocks, w):
+        print(line)
 
-    pr(sep)
-    over = sum(1 for p in procs if p[0] >= threshold_bytes)
-    pr(f"  >{args.threshold}GB: {over} proc")
+    print(divider_with(w, footer))
 
 
 TOGGLE_KEYS = {
-    "1": ("short", "Vista corta"),
-    "2": ("disk", "Disco"),
-    "3": ("network", "Red"),
-    "4": ("swap", "Swap"),
-    "5": ("vram", "VRAM"),
+    "1": ("ram", "RAM"),
+    "2": ("cpu", "CPU"),
+    "3": ("swap", "Swap"),
+    "4": ("vram", "VRAM"),
+    "5": ("disk", "Disco"),
+    "6": ("network", "Red"),
+    "7": ("top_procs", "Top RAM"),
+    "8": ("top_cpu", "Top CPU"),
+    "9": ("clock", "Reloj"),
+    "0": ("decor", "Header/divisores"),
 }
 
 TOAST_SECONDS = 3.0
 
-HELP_FOOTER = "[q] salir  [1] vista  [2] disco  [3] red  [4] swap  [5] vram  [t] tema  [u] update  [?] ayuda"
+HELP_FOOTER = (
+    "[1]RAM [2]CPU [3]SWP [4]VRAM [5]DSK [6]NET "
+    "[7]TopRAM [8]TopCPU [9]Reloj [0]Decor  |  "
+    "[m]modo [c]config [t]tema [u]update [?]ayuda [q]salir"
+)
+
+
+def _config_prompt(args: object) -> None:
+    """Tecla c: edita threshold (GB), top procesos e intervalo del loop.
+    Input: "threshold top interval" separados por espacio; vacío mantiene todo."""
+    try:
+        raw = input(
+            f"config → threshold [{args.threshold}G] top [{args.top}] "
+            f"interval [{args.interval}s] (enter=mantener): "
+        )
+    except (EOFError, KeyboardInterrupt):
+        return
+    vals = raw.split()
+    if not vals:
+        return
+    try:
+        for i, tok in enumerate(vals[:3]):
+            num = float(tok)
+            if i == 0:
+                args.threshold = num if num > 0 else args.threshold
+            elif i == 1:
+                args.top = int(num) if num > 0 else args.top
+            else:
+                args.interval = num if num > 0 else args.interval
+    except ValueError:
+        print("  ⚠ formato inválido (esperaba números)")
+        return
+    print(f"  ✓ threshold={args.threshold}G top={args.top} interval={args.interval}s")
 
 
 def _apply_update() -> bool:
@@ -331,17 +406,18 @@ def loop_mode(args: object, threshold_bytes: int) -> None:
         try:
             tw, th = shutil.get_terminal_size()
             pad = max(0, (th - 12) // 2)
-            if args.short:
-                short_info(args, threshold_bytes)
-            else:
-                full_info(args, threshold_bytes)
+            clock = time.strftime("%H:%M")
             if show_help:
-                sys.stdout.write(f"\n{DIM}{HELP_FOOTER}{RESET}\n")
-            if time.monotonic() < theme_feedback_until:
+                footer = f"{DIM}{HELP_FOOTER}{RESET}"
+            elif time.monotonic() < theme_feedback_until:
                 # toast con feedback del tema: se muestra ~TOAST_SECONDS y expira solo
-                sys.stdout.write(f"{CYAN}theme: {args.theme}{RESET}  {DIM}{time.strftime('%H:%M')}{RESET}")
+                footer = f"{CYAN}theme: {args.theme}{RESET}  {DIM}{clock}{RESET}"
             else:
-                sys.stdout.write(f"{DIM}[u] update  [?] ayuda  {time.strftime('%H:%M')}{RESET}")
+                footer = f"{DIM}{clock}{RESET}"
+            if args.short:
+                short_info(args, threshold_bytes, footer)
+            else:
+                full_info(args, threshold_bytes, footer)
         finally:
             sys.stdout = old_out
 
@@ -373,6 +449,21 @@ def loop_mode(args: object, threshold_bytes: int) -> None:
                     show_help = not show_help
                     render()
                     continue
+                if k == "m":
+                    args.short = not args.short
+                    render()
+                    continue
+                if k == "c":
+                    termios.tcsetattr(fd, termios.TCSADRAIN, old)
+                    _config_prompt(args)
+                    termios.tcsetattr(fd, termios.TCSADRAIN, new)
+                    threshold_bytes = int(args.threshold * 1024**3)
+                    if not args.no_config:
+                        from monitor.config import config_from_args, save_config
+
+                        save_config(config_from_args(args))
+                    render()
+                    continue
                 if k == "t":
                     theme.cycle_theme()
                     args.theme = theme.ACTIVE
@@ -380,7 +471,9 @@ def loop_mode(args: object, threshold_bytes: int) -> None:
                         from monitor.config import config_from_args, save_config
 
                         save_config(config_from_args(args))
-                    theme_feedback_until = time.monotonic() + TOAST_SECONDS  # toast con autolimpieza
+                    theme_feedback_until = (
+                        time.monotonic() + TOAST_SECONDS
+                    )  # toast con autolimpieza
                     render()  # feedback inmediato con el nuevo tema
                     continue
                 if k == "u":

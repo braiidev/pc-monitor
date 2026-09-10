@@ -3,14 +3,12 @@
 ## Doing
 
 ## Next
-- [ ] (próximo a decidir por el usuario)
 
 ## Done
-- [x] v0.1 scaffold: git init, pyproject, src-layout package port, install.sh, update.py, flags globales, symlink, README, TODO
-- [x] v0.2 fix ProcessLookupError (readers) + test_readers
-- [x] v0.3 config en ~/.config/monitor/ + migración + test_config
-- [x] v0.4 temas de color (5 temas + --theme + tecla t) + test_theme
-- [x] v0.5 tecla u: update + reload automático en loop + test_cli/test_update
-- [x] v0.6 verificación final + push + tags
-- [x] v0.7 fix: fallback de tema viejo en config + toast de tema más duradero
-- [x] v0.8 feat: monitor --theme-custom (editor del tema custom con ejemplos comentados) + test
+- [x] v0.9.1 fix: loop mode roto (views L384) + TypeError float (L238) + test footer desync
+- [x] v0.9.2 feat: vis_len + flex_wrap (wrap por ancho de terminal) + test_views
+- [x] v0.9.3 feat: short con bloques flex-wrap + reloj en divisor + toast en fila del reloj
+- [x] v0.9.4 feat: full como grupos [título + 2 líneas] + barras CPU por toggle + reloj
+- [x] v0.9.5 feat: toggles 0-9 + teclas m/t/u/?/c + HELP_FOOTER nuevo + persistencia
+- [x] v0.9.6 feat: config con 10 secciones [sections] + tecla c (threshold/top/interval)
+- [x] v0.9.7 docs: README con atajos y bloques

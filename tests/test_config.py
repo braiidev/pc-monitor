@@ -38,8 +38,8 @@ def test_migrate_legacy_config(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "LEGACY_CONFIG_PATH", legacy)
     cfg = config.load_config()
     assert cfg["general"]["loop"] is False
-    assert not legacy.exists()          # la vieja se movió
-    assert new.exists()                 # la nueva nació
+    assert not legacy.exists()  # la vieja se movió
+    assert new.exists()  # la nueva nació
 
 
 def test_migrate_skips_if_new_exists(tmp_path, monkeypatch):
@@ -51,8 +51,8 @@ def test_migrate_skips_if_new_exists(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "CONFIG_PATH", new)
     monkeypatch.setattr(config, "LEGACY_CONFIG_PATH", legacy)
     cfg = config.load_config()
-    assert cfg["general"]["loop"] is True   # gana la config nueva
-    assert legacy.exists()                  # no se tocó la vieja
+    assert cfg["general"]["loop"] is True  # gana la config nueva
+    assert legacy.exists()  # no se tocó la vieja
 
 
 def test_merge_defaults_missing_section():
@@ -62,6 +62,25 @@ def test_merge_defaults_missing_section():
     assert merged["sections"]["swap"] is True
 
 
+def test_migrate_old_four_sections_gains_new_toggles(tmp_path, monkeypatch):
+    new = tmp_path / "monitor" / "config.toml"
+    new.parent.mkdir(parents=True)
+    new.write_text(
+        "[sections]\ndisk = true\nnetwork = true\nswap = false\nvram = false\n"
+    )
+    monkeypatch.setattr(config, "CONFIG_PATH", new)
+    monkeypatch.setattr(config, "LEGACY_CONFIG_PATH", tmp_path / "monitor.toml")
+    cfg = config.load_config()
+    assert cfg["sections"]["disk"] is True
+    assert cfg["sections"]["swap"] is False
+    # las claves nuevas caen a sus defaults
+    assert cfg["sections"]["ram"] is True
+    assert cfg["sections"]["top_procs"] is True
+    assert cfg["sections"]["top_cpu"] is True
+    assert cfg["sections"]["clock"] is True
+    assert cfg["sections"]["decor"] is True
+
+
 def test_parse_scalar_types():
     assert config._parse_scalar("true") is True
     assert config._parse_scalar("5") == 5
@@ -69,7 +88,9 @@ def test_parse_scalar_types():
     assert config._parse_scalar('"clasico"') == "clasico"
 
 
-@pytest.mark.parametrize("content", ["", "[general]\nthreshold = 2.0", "# solo comentario"])
+@pytest.mark.parametrize(
+    "content", ["", "[general]\nthreshold = 2.0", "# solo comentario"]
+)
 def test_load_tolerates_broken_or_partial(tmp_path, monkeypatch, content):
     new = tmp_path / "monitor" / "config.toml"
     new.parent.mkdir(parents=True)
@@ -89,7 +110,12 @@ def test_custom_palette_persists_roundtrip(tmp_path, monkeypatch):
     cfg["custom"] = {"red": "196", "yellow": "", "cyan": "38;5;117", "green": "92"}
     config.save_config(cfg)
     again = config.load_config()
-    assert again["custom"] == {"red": "196", "yellow": "", "cyan": "38;5;117", "green": "92"}
+    assert again["custom"] == {
+        "red": "196",
+        "yellow": "",
+        "cyan": "38;5;117",
+        "green": "92",
+    }
 
 
 def test_written_config_includes_custom_section_with_comments(tmp_path, monkeypatch):

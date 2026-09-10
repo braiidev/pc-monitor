@@ -9,7 +9,9 @@ import pytest
 from monitor import readers
 
 
-def _write_proc(tmp_path: Path, pid: str, stat: str | None = None, status: str | None = None) -> Path:
+def _write_proc(
+    tmp_path: Path, pid: str, stat: str | None = None, status: str | None = None
+) -> Path:
     proc = tmp_path / "proc"
     (proc / pid).mkdir(parents=True, exist_ok=True)
     if stat is not None:
@@ -68,7 +70,9 @@ def test_cpu_time_process_lookup_error_returns_none(monkeypatch, tmp_path):
 def test_read_procs_skips_dead_processes(monkeypatch, tmp_path):
     status_ok = "Name:\tbash\nVmRSS:\t1024 kB\n"
     proc = _write_proc(tmp_path, "123", status=status_ok)
-    (proc / "999").mkdir()  # vive en listdir pero muere al leer su status (FileNotFoundError)
+    (
+        proc / "999"
+    ).mkdir()  # vive en listdir pero muere al leer su status (FileNotFoundError)
     (proc / "abc").mkdir()  # no es un pid -> se ignora
     monkeypatch.setattr(readers, "PROC_PATH", proc)
     result = readers.read_procs()
@@ -78,7 +82,9 @@ def test_read_procs_skips_dead_processes(monkeypatch, tmp_path):
 def test_read_meminfo_parses_kb_to_bytes(monkeypatch, tmp_path):
     proc = tmp_path / "proc"
     proc.mkdir()
-    (proc / "meminfo").write_text("MemTotal:        16384 kB\nMemFree:          2048 kB\n")
+    (proc / "meminfo").write_text(
+        "MemTotal:        16384 kB\nMemFree:          2048 kB\n"
+    )
     monkeypatch.setattr(readers, "PROC_PATH", proc)
     d = readers.read_meminfo()
     assert d["MemTotal"] == 16384 * 1024

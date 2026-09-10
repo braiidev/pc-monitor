@@ -62,18 +62,21 @@ def test_themes_are_visually_distinct():
         theme.ACTIVE = "clasico"
         assert theme.c("red") == "\033[91m"
         theme.ACTIVE = "calido"
-        assert theme.c("cyan") == "\033[93m"   # estructura amarilla
+        assert theme.c("cyan") == "\033[93m"  # estructura amarilla
         assert theme.c("green") == "\033[91m"  # OK rojizo
         theme.ACTIVE = "alto_contraste"
-        assert theme.c("cyan") == "\033[95m"   # magenta por todas partes
+        assert theme.c("cyan") == "\033[95m"  # magenta por todas partes
         theme.ACTIVE = "flatline"
-        assert theme.c("cyan") == "\033[96m"   # cian puro
+        assert theme.c("cyan") == "\033[96m"  # cian puro
         theme.ACTIVE = "custom"
-        assert theme.c("red") == "\033[91m"    # plantilla = clasico
+        assert theme.c("red") == "\033[91m"  # plantilla = clasico
     finally:
         theme.ACTIVE = before
 
-    role_sets = {name: tuple(theme.THEMES[name][r] for r in ("red", "yellow", "cyan", "green")) for name in theme.THEME_NAMES}
+    role_sets = {
+        name: tuple(theme.THEMES[name][r] for r in ("red", "yellow", "cyan", "green"))
+        for name in theme.THEME_NAMES
+    }
     seen: set[tuple[str, ...]] = set()
     for name in theme.THEME_NAMES:
         if name == "custom":
@@ -90,6 +93,7 @@ def test_mono_has_no_color_codes():
 
 # ────────────────────────── custom configurable (v0.8) ──────────────────────
 
+
 def test_custom_defaults_to_clasico():
     theme.set_custom_palette({})
     theme.ACTIVE = "custom"
@@ -98,7 +102,9 @@ def test_custom_defaults_to_clasico():
 
 
 def test_custom_palette_overrides_colors():
-    theme.set_custom_palette({"red": "196", "yellow": "", "cyan": "38;5;117", "green": "92"})
+    theme.set_custom_palette(
+        {"red": "196", "yellow": "", "cyan": "38;5;117", "green": "92"}
+    )
     theme.ACTIVE = "custom"
     assert theme.c("red") == "\033[196m"
     assert theme.c("yellow") == ""
@@ -106,7 +112,9 @@ def test_custom_palette_overrides_colors():
 
 
 def test_custom_invalid_role_falls_back_to_clasico():
-    theme.set_custom_palette({"red": "nope", "yellow": "@@@", "cyan": "96", "green": "9999"})
+    theme.set_custom_palette(
+        {"red": "nope", "yellow": "@@@", "cyan": "96", "green": "9999"}
+    )
     assert theme.custom_palette()["red"] == "91"
     assert theme.custom_palette()["yellow"] == "93"
     assert theme.custom_palette()["cyan"] == "96"
@@ -114,7 +122,9 @@ def test_custom_invalid_role_falls_back_to_clasico():
 
 
 def test_custom_palette_does_not_leak_into_other_themes():
-    theme.set_custom_palette({"red": "196", "yellow": "93", "cyan": "96", "green": "92"})
+    theme.set_custom_palette(
+        {"red": "196", "yellow": "93", "cyan": "96", "green": "92"}
+    )
     theme.ACTIVE = "clasico"
     assert theme.c("red") == "\033[91m"
 

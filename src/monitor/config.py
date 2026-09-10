@@ -6,19 +6,60 @@ import os
 import re
 from pathlib import Path
 
-CONFIG_PATH = Path(os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config"))) / "monitor" / "config.toml"
-LEGACY_CONFIG_PATH = Path(os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config"))) / "monitor.toml"
+CONFIG_PATH = (
+    Path(os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config")))
+    / "monitor"
+    / "config.toml"
+)
+LEGACY_CONFIG_PATH = (
+    Path(os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config")))
+    / "monitor.toml"
+)
 
 DEFAULT_CONFIG = {
-    "general": {"loop": True, "short": True, "threshold": 1.0, "top": 5, "interval": 2.0, "theme": "clasico"},
-    "sections": {"disk": False, "network": False, "swap": True, "vram": True},
-    "custom": {"red": "91", "yellow": "93", "cyan": "96", "green": "92"},  # = paleta clasico
+    "general": {
+        "loop": True,
+        "short": True,
+        "threshold": 1.0,
+        "top": 5,
+        "interval": 2.0,
+        "theme": "clasico",
+    },
+    "sections": {
+        "ram": True,
+        "cpu": True,
+        "swap": True,
+        "vram": True,
+        "disk": False,
+        "network": False,
+        "top_procs": True,
+        "top_cpu": True,
+        "clock": True,
+        "decor": True,
+    },
+    "custom": {
+        "red": "91",
+        "yellow": "93",
+        "cyan": "96",
+        "green": "92",
+    },  # = paleta clasico
 }
 
 # orden fijo para que el archivo escrito quede siempre legible/estable
 _CONFIG_LAYOUT = {
     "general": ["loop", "short", "threshold", "top", "interval", "theme"],
-    "sections": ["disk", "network", "swap", "vram"],
+    "sections": [
+        "ram",
+        "cpu",
+        "swap",
+        "vram",
+        "disk",
+        "network",
+        "top_procs",
+        "top_cpu",
+        "clock",
+        "decor",
+    ],
     "custom": ["red", "yellow", "cyan", "green"],
 }
 
@@ -43,7 +84,7 @@ def _parse_scalar(raw: str) -> object:
     try:
         return float(raw)
     except ValueError:
-        return raw.strip('"\'')
+        return raw.strip("\"'")
 
 
 def parse_toml_lite(text: str) -> dict[str, dict[str, object]]:
@@ -85,7 +126,9 @@ def _write_toml_lite(cfg: dict[str, dict[str, object]]) -> str:
     return "\n".join(lines)
 
 
-def _deep_merge_defaults(cfg: dict[str, dict[str, object]]) -> dict[str, dict[str, object]]:
+def _deep_merge_defaults(
+    cfg: dict[str, dict[str, object]],
+) -> dict[str, dict[str, object]]:
     merged: dict[str, dict[str, object]] = {}
     for section, keys in DEFAULT_CONFIG.items():
         merged[section] = {**keys, **cfg.get(section, {})}
@@ -137,6 +180,17 @@ def config_from_args(args: object) -> dict[str, dict[str, object]]:
             "interval": args.interval,
             "theme": args.theme,
         },
-        "sections": {"disk": args.disk, "network": args.network, "swap": args.swap, "vram": args.vram},
+        "sections": {
+            "ram": args.ram,
+            "cpu": args.cpu,
+            "swap": args.swap,
+            "vram": args.vram,
+            "disk": args.disk,
+            "network": args.network,
+            "top_procs": args.top_procs,
+            "top_cpu": args.top_cpu,
+            "clock": args.clock,
+            "decor": args.decor,
+        },
         "custom": dict(theme.custom_palette()),
     }

@@ -10,7 +10,9 @@ from monitor import update
 
 
 def _git(repo: str, *args: str) -> None:
-    subprocess.run(["git", "-C", repo, *args], check=True, capture_output=True, text=True)
+    subprocess.run(
+        ["git", "-C", repo, *args], check=True, capture_output=True, text=True
+    )
 
 
 @pytest.fixture
@@ -26,7 +28,9 @@ def git_pair(tmp_path):
     _git(str(origin), "add", ".")
     _git(str(origin), "commit", "-q", "-m", "v0")
 
-    subprocess.run(["git", "clone", "-q", str(origin), str(work)], check=True, capture_output=True)
+    subprocess.run(
+        ["git", "clone", "-q", str(origin), str(work)], check=True, capture_output=True
+    )
     _git(str(work), "config", "user.email", "t@t")
     _git(str(work), "config", "user.name", "t")
     return str(origin), str(work)
@@ -63,7 +67,9 @@ def test_do_update_pulls_ff_only(git_pair, monkeypatch):
     _git(origin, "add", ".")
     _git(origin, "commit", "-q", "-m", "v2")
 
-    monkeypatch.setattr(update, "_pip_reinstall", lambda repo: None)  # no re-instalar paquetes en test
+    monkeypatch.setattr(
+        update, "_pip_reinstall", lambda repo: None
+    )  # no re-instalar paquetes en test
     res = update.do_update(work)
     assert res.ok
     assert "Actualizado" in res.message
