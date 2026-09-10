@@ -1,11 +1,12 @@
 # TODO
 
 ## Doing
-- [ ] v0.9.10 feat: flag --config (reemplaza --theme-custom) + default de primera instalación one-shot full (loop/short = false)
+- [ ] v0.9.11 feat: top RAM/CPU en texto dim (full + short), rojo por umbral conservado
 
 ## Next
 
 ## Done
+- [x] v0.9.10 feat: flag --config (reemplaza --theme-custom) + default inicial one-shot full (loop/short = false)
 - [x] v0.9.8 feat: toggles 9/0 efectivos (reloj/decor en vistas) + config por pantalla (tecla c)
 - [x] v0.9.9 refactor: normalización flags CLI (--live/--once/--full, --top-procs dasheado) + --help con opciones de monitoreo
 - [x] v0.9.1 fix: loop mode roto (views L384) + TypeError float (L238) + test footer desync

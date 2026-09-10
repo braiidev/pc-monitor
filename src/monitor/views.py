@@ -241,8 +241,8 @@ def full_info(args: object, threshold_bytes: int, footer: str = "") -> None:
     if getattr(args, "top_procs", True):
         pblocks = []
         for rss, pid, name in procs[:3]:
-            color = RED if rss >= threshold_bytes else ""
-            pblocks.append(f"  {color}{fmt.fmt_short(rss):>6}{RESET} {pid:<6} {name}")
+            num = f"{RED if rss >= threshold_bytes else DIM}{fmt.fmt_short(rss):>6}{RESET}"
+            pblocks.append(f"  {num} {DIM}{pid:<6} {name}{RESET}")
         _group("TOP RAM", pblocks, w, dec)
 
     if getattr(args, "top_cpu", True):
@@ -256,7 +256,10 @@ def full_info(args: object, threshold_bytes: int, footer: str = "") -> None:
                 continue
             cpu_procs.append(((after_t - before_t) / 0.1, pid, name))
         cpu_procs.sort(reverse=True)
-        cblocks = [f"  {fmt.fmt_pct(pct):>7} {name}" for pct, _, name in cpu_procs[:3]]
+        cblocks = [
+            f"  {DIM}{fmt.fmt_pct(pct):>7} {name}{RESET}"
+            for pct, _, name in cpu_procs[:3]
+        ]
         _group("TOP CPU", cblocks, w, dec)
 
     if dec:
@@ -328,7 +331,8 @@ def short_info(args: object, threshold_bytes: int, footer: str = "") -> None:
     pblocks: list[str] = []
     for rss, _, name in procs[:3]:
         txt = f"  {fmt.fmt_short(rss):>6}  {name}"[: w - 2]
-        pblocks.append(f" {RED}{txt}{RESET}" if rss >= threshold_bytes else f" {txt}")
+        color = RED if rss >= threshold_bytes else DIM
+        pblocks.append(f" {color}{txt}{RESET}")
     for line in flex_wrap(pblocks, w):
         print(line)
 
