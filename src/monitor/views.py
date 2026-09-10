@@ -121,6 +121,7 @@ def full_info(args: object, threshold_bytes: int, footer: str = "") -> None:
     tw, _ = shutil.get_terminal_size((80, 30))
     w = tw
     dec = getattr(args, "decor", True)
+    n = min(max(getattr(args, "top", 5), 1), 5)
     if dec:
         print(divider_with(w, f" {CYAN}MONITOR{RESET} "))
 
@@ -240,7 +241,7 @@ def full_info(args: object, threshold_bytes: int, footer: str = "") -> None:
     procs = readers.read_procs()
     if getattr(args, "top_procs", True):
         pblocks = []
-        for rss, pid, name in procs[:3]:
+        for rss, pid, name in procs[:n]:
             num = f"{RED if rss >= threshold_bytes else DIM}{fmt.fmt_short(rss):>6}{RESET}"
             pblocks.append(f"  {num} {DIM}{pid:<6} {name}{RESET}")
         _group("TOP RAM", pblocks, w, dec)
@@ -258,7 +259,7 @@ def full_info(args: object, threshold_bytes: int, footer: str = "") -> None:
         cpu_procs.sort(reverse=True)
         cblocks = [
             f"  {DIM}{fmt.fmt_pct(pct):>7} {name}{RESET}"
-            for pct, _, name in cpu_procs[:3]
+            for pct, _, name in cpu_procs[:n]
         ]
         _group("TOP CPU", cblocks, w, dec)
 
@@ -272,6 +273,7 @@ def short_info(args: object, threshold_bytes: int, footer: str = "") -> None:
     tw, _ = shutil.get_terminal_size((40, 20))
     w = min(tw, 40)
     dec = getattr(args, "decor", True)
+    n = min(max(getattr(args, "top", 5), 1), 5)
     sep = divider_with(w)
     head = divider_with(w, f" {CYAN}MONITOR{RESET} ")
 
@@ -325,11 +327,11 @@ def short_info(args: object, threshold_bytes: int, footer: str = "") -> None:
     for line in flex_wrap(blocks, w):
         print(line)
 
-    procs = readers.read_procs(10)
+    procs = readers.read_procs(n * 2)
     if dec:
         print(sep)
     pblocks: list[str] = []
-    for rss, _, name in procs[:3]:
+    for rss, _, name in procs[:n]:
         txt = f"  {fmt.fmt_short(rss):>6}  {name}"[: w - 2]
         color = RED if rss >= threshold_bytes else DIM
         pblocks.append(f" {color}{txt}{RESET}")
@@ -371,7 +373,7 @@ def _config_screen(args: object, w: int) -> None:
         f"  {CYAN}1{RESET}) Umbral RAM (GB)      [{GREEN}{args.threshold}{RESET}]  "
         f"procesos > umbral resaltados"
     )
-    print(f"  {CYAN}2{RESET}) Top procesos         [{GREEN}{args.top}{RESET}]")
+    print(f"  {CYAN}2{RESET}) Top procesos         [{GREEN}{args.top}{RESET}]  (1-5)")
     print(f"  {CYAN}3{RESET}) Intervalo refresco   [{GREEN}{args.interval}{RESET}s]")
     print()
     print(f"  {DIM}[1-3] editar · [0/esc/q] volver{RESET}")
@@ -385,9 +387,9 @@ def _config_edit_field(args: object, key: str) -> None:
             if raw.strip():
                 args.threshold = max(float(raw), 0.1)
         elif key == "2":
-            raw = input(f"{CYAN}top procesos [{GREEN}{args.top}{RESET}]: ")
+            raw = input(f"{CYAN}top procesos [{GREEN}{args.top}{RESET}] (1-5): ")
             if raw.strip():
-                args.top = max(int(float(raw)), 1)
+                args.top = min(max(int(float(raw)), 1), 5)
         else:
             raw = input(f"{CYAN}intervalo s [{GREEN}{args.interval}{RESET}]: ")
             if raw.strip():

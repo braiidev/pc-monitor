@@ -125,3 +125,53 @@ def test_full_info_decor_off_keeps_data_and_clock(capsys):
     assert "14:32" in out
     assert "MONITOR" not in out
     assert "──" not in out
+
+
+def _top_args(top: int = 3, top_procs: bool = True, top_cpu: bool = False) -> object:
+    return type(
+        "A",
+        (),
+        {
+            "ram": False,
+            "cpu": False,
+            "swap": False,
+            "vram": False,
+            "disk": False,
+            "network": False,
+            "top_procs": top_procs,
+            "top_cpu": top_cpu,
+            "decor": False,
+            "top": top,
+        },
+    )()
+
+
+FAKE_PROCS = [(800 - i * 10, f"p{i}", f"proc{i}") for i in range(6)]
+
+
+def test_full_top_ram_respects_args_top(monkeypatch, capsys):
+    monkeypatch.setattr(views.readers, "read_procs", lambda limit=0: FAKE_PROCS)
+    views.full_info(_top_args(top=2), int(1.0 * 1024**3))
+    out = capsys.readouterr().out
+    assert "proc0" in out and "proc1" in out
+    assert "proc2" not in out
+
+
+def test_short_top_ram_respects_args_top(monkeypatch, capsys):
+    monkeypatch.setattr(views.readers, "read_procs", lambda limit=0: FAKE_PROCS[:limit])
+    views.short_info(_top_args(top=2), int(1.0 * 1024**3))
+    out = capsys.readouterr().out
+    assert "proc0" in out and "proc1" in out
+    assert "proc2" not in out
+
+
+def test_full_top_cpu_respects_args_top(monkeypatch, capsys):
+    monkeypatch.setattr(views.readers, "read_procs", lambda limit=0: FAKE_PROCS)
+    monkeypatch.setattr(
+        views.readers, "cpu_time", lambda pid: int(str(pid)[1:])  # p0..p5 -> 0..5
+    )
+    views.full_info(_top_args(top=2, top_procs=False, top_cpu=True), int(1.0 * 1024**3))
+    out = capsys.readouterr().out
+    assert "proc5" in out and "proc4" in out  # top 2 por CPU (orden desc)
+    assert "proc3" not in out
+    assert "proc2" not in out

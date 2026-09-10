@@ -48,7 +48,7 @@ monitor --disk --network   # incluir disco y red
 | `threshold` | Umbral en GB de RAM para marcar procesos excesivos |
 | `-l, --live / --once` | Modo en vivo (refresco) / one-shot (una vez y sale) |
 | `-s, --short / --full` | Vista compacta (bloques con flex-wrap) / completa |
-| `-n, --top N` | Cantidad de procesos a listar |
+| `-n, --top N` | Procesos listados en los tops (1-5) |
 | `--interval S` | Segundos entre refrescos en `--live` |
 | `--theme NOMBRE` | Tema de color: `clasico`, `mono`, `calido`, `alto_contraste`, `flatline`, `custom` |
 | `--config` | Abre `$EDITOR` en la config (general, secciones y paleta `custom`) y sale |

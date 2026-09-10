@@ -84,6 +84,30 @@ def test_parse_short_sets_short_true():
     assert args.short is True
 
 
+def test_parse_top_clamps_to_max_5():
+    assert _parse(["-n", "8"]).top == 5
+    assert _parse(["--top", "99"]).top == 5
+
+
+def test_parse_top_clamps_to_min_1():
+    assert _parse(["-n", "0"]).top == 1
+    assert _parse(["-n", "-3"]).top == 1
+
+
+def test_parse_top_default_follows_config():
+    assert _parse([]).top == config.DEFAULT_CONFIG["general"]["top"]
+
+
+def test_config_edit_field_clamps_top_1_5(monkeypatch):
+    ns = type("A", (), {"top": 3, "threshold": 1.0, "interval": 2.0})()
+    monkeypatch.setattr("builtins.input", lambda *a: "9")
+    views._config_edit_field(ns, "2")
+    assert ns.top == 5
+    monkeypatch.setattr("builtins.input", lambda *a: "0")
+    views._config_edit_field(ns, "2")
+    assert ns.top == 1
+
+
 def test_parse_defaults_follow_config():
     cfg = {k: dict(v) for k, v in config.DEFAULT_CONFIG.items()}
     from monitor.main import parse_args

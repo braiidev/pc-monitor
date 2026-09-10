@@ -194,7 +194,11 @@ def build_parser(cfg: dict[str, dict[str, object]]) -> argparse.ArgumentParser:
         help="Vista completa",
     )
     p.add_argument(
-        "-n", "--top", type=int, default=g["top"], help="Cantidad de procesos a listar"
+        "-n",
+        "--top",
+        type=int,
+        default=g["top"],
+        help=f"Procesos listados en los tops (1-5, default: {g['top']})",
     )
     p.add_argument(
         "--interval",
@@ -258,6 +262,7 @@ def parse_args(cfg: dict[str, dict[str, object]]) -> argparse.Namespace:
         args.loop = cfg["general"]["loop"]
     if args.short is None:
         args.short = cfg["general"]["short"]
+    args.top = min(max(args.top, 1), 5)
     return args
 
 
