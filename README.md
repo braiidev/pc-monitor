@@ -34,7 +34,7 @@ git push origin main
 ## Usar
 
 ```bash
-monitor            # estado completo (o --live según config)
+monitor            # estado completo (one-shot; -l para en vivo)
 monitor -l         # modo en vivo con refresco periódico
 monitor --once     # imprime una vez y sale
 monitor -s         # vista compacta
@@ -51,7 +51,7 @@ monitor --disk --network   # incluir disco y red
 | `-n, --top N` | Cantidad de procesos a listar |
 | `--interval S` | Segundos entre refrescos en `--live` |
 | `--theme NOMBRE` | Tema de color: `clasico`, `mono`, `calido`, `alto_contraste`, `flatline`, `custom` |
-| `--theme-custom` | Abre `$EDITOR` en la config para editar la paleta del tema `custom` |
+| `--config` | Abre `$EDITOR` en la config (general, secciones y paleta `custom`) y sale |
 | `--ram / --cpu / --swap / --vram / --disk / --network` | Toggle de secciones (con `--no-*`) |
 | `--top-procs / --top-cpu` | Toggle de top procesos (RAM / sample por CPU) |
 | `--clock / --decor` | Reloj en el divisor / header y divisores |
@@ -85,8 +85,8 @@ Primer arranque genera `~/.config/monitor/config.toml`:
 
 ```toml
 [general]
-loop = true
-short = true
+loop = false
+short = false
 threshold = 1.0
 top = 5
 interval = 2.0
@@ -104,7 +104,7 @@ top_cpu = true
 clock = true
 decor = true
 
-# Tema custom: paleta del tema `custom` (editable con `monitor --theme-custom`)
+# Tema custom: paleta del tema `custom` (editable con `monitor --config`)
 [custom]
 red = "91"
 yellow = "93"
@@ -112,7 +112,7 @@ cyan = "96"
 green = "92"
 ```
 
-El tema `custom` parte de la paleta `clasico`; sus valores se editan con `monitor --theme-custom` (abre `$EDITOR`). Los códigos son ANSI: vacío = sin color, o SGR válido (ej. `31`–`37`, brillantes `90`–`97`, 256 colores `38;5;N`). Valores inválidos caen a `clasico` automáticamente.
+El tema `custom` parte de la paleta `clasico`; sus valores se editan con `monitor --config` (abre `$EDITOR`). Los códigos son ANSI: vacío = sin color, o SGR válido (ej. `31`–`37`, brillantes `90`–`97`, 256 colores `38;5;N`). Valores inválidos caen a `clasico` automáticamente.
 
 ## Actualizar
 

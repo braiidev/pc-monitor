@@ -28,7 +28,7 @@ INSTALL_DIR_EXPECTED = os.path.join(
 LIFECYCLE_HELP = """Comandos de autogestión:
   --update           actualiza el paquete (git pull) y sale
   --check-update     verifica si hay versión nueva
-  --theme-custom     edita la paleta del tema custom (abre $EDITOR en la config) y sale
+  --config           edita la config en $EDITOR (general, secciones y paleta custom) y sale
   --uninstall        desinstala el paquete (y, si confirmás, la config)
   --version          imprime la versión instalada"""
 
@@ -36,8 +36,8 @@ LIFECYCLE_HELP = """Comandos de autogestión:
 # ────────────────────────── self-management (CLI) ──────────────────────────
 
 
-def _cli_theme_custom() -> int:
-    """Abre la config en el editor para editar la paleta del tema custom."""
+def _cli_config() -> int:
+    """Abre la config en el editor (general, secciones y paleta custom)."""
     cfg = load_config()  # garantiza que exista config con sección [custom]
     if "custom" not in cfg:
         cfg["custom"] = dict(theme.custom_palette())
@@ -47,7 +47,7 @@ def _cli_theme_custom() -> int:
     if not editor:
         candidate = shutil.which("nano") or shutil.which("vim") or shutil.which("vi")
         editor = candidate or "vi"
-    print(f"▶ Editá el tema custom en {CONFIG_PATH} (guardá y cerrá el editor)")
+    print(f"▶ Editá la config en {CONFIG_PATH} (guardá y cerrá el editor)")
     try:
         subprocess.call([editor, str(CONFIG_PATH)])
     except OSError as e:
@@ -69,7 +69,7 @@ def _cli_theme_custom() -> int:
             ", ".join(f"{k}={v!r}" for k, v in bad.items()),
         )
     print(
-        "✓ Tema custom actualizado:",
+        "✓ Config editada — paleta custom:",
         ", ".join(f"{k}={theme.custom_palette()[k]}" for k in theme.CUSTOM_ROLES),
     )
     return 0
@@ -300,8 +300,8 @@ def main() -> None:
         sys.exit(_cli_update())
     if "--check-update" in argv:
         sys.exit(_cli_check_update())
-    if "--theme-custom" in argv:
-        sys.exit(_cli_theme_custom())
+    if "--config" in argv:
+        sys.exit(_cli_config())
     if "--uninstall" in argv:
         sys.exit(_cli_uninstall())
     if "--version" in argv:

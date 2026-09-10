@@ -1,6 +1,7 @@
 # TODO
 
 ## Doing
+- [ ] v0.9.10 feat: flag --config (reemplaza --theme-custom) + default de primera instalación one-shot full (loop/short = false)
 
 ## Next
 

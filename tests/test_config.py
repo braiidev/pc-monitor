@@ -17,7 +17,7 @@ def test_write_read_roundtrip(tmp_path, monkeypatch):
     again = config.load_config()
     assert again["general"]["top"] == 7
     assert again["sections"]["disk"] is True
-    assert again["general"]["loop"] is True
+    assert again["general"]["loop"] is False
 
 
 def test_load_uses_new_path(tmp_path, monkeypatch):
@@ -98,7 +98,7 @@ def test_load_tolerates_broken_or_partial(tmp_path, monkeypatch, content):
     monkeypatch.setattr(config, "CONFIG_PATH", new)
     monkeypatch.setattr(config, "LEGACY_CONFIG_PATH", tmp_path / "monitor.toml")
     cfg = config.load_config()
-    assert cfg["general"]["loop"] is True
+    assert cfg["general"]["loop"] is False
     assert cfg["sections"]["swap"] is True
 
 

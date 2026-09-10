@@ -18,8 +18,8 @@ LEGACY_CONFIG_PATH = (
 
 DEFAULT_CONFIG = {
     "general": {
-        "loop": True,
-        "short": True,
+        "loop": False,
+        "short": False,
         "threshold": 1.0,
         "top": 5,
         "interval": 2.0,
@@ -65,7 +65,7 @@ _CONFIG_LAYOUT = {
 
 # comentarios volcados siempre en la sección [custom] (el parser los ignora)
 _CUSTOM_COMMENTS = """\
-# Tema personalizado (editá con: monitor --theme-custom)
+# Tema personalizado (editá con: monitor --config)
 # Roles: red (alerta)  yellow (aviso)  cyan (estructura)  green (OK)
 # Color = código ANSI, o vacío = sin color. Códigos válidos:
 #   31 rojo  32 verde  33 amarillo  34 azul  35 magenta  36 cian  37 blanco

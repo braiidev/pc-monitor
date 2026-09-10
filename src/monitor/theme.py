@@ -10,7 +10,7 @@ Identidad de cada tema (tabla COLOR_SPEC de Player):
     calido          Amarillo          Rojo        Amarillo  Rojo
     alto_contraste  Magenta           Verde       Magenta   Magenta
     flatline        Cian              Rojo        Rojo      Rojo
-    custom          editable (default = clasico, vía config [custom] o --theme-custom)
+    custom          editable (default = clasico, vía config [custom] o monitor --config)
 """
 
 from __future__ import annotations
@@ -67,7 +67,7 @@ RESET_CODE = "0"
 
 ACTIVE = "clasico"
 
-# roles configurables del tema custom (config [custom] / --theme-custom)
+# roles configurables del tema custom (config [custom] / monitor --config)
 CUSTOM_ROLES = ("red", "yellow", "cyan", "green")
 
 # paleta efectiva del tema custom (default = clasico si no está cargada desde config)
