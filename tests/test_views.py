@@ -177,31 +177,24 @@ def test_full_top_cpu_respects_args_top(monkeypatch, capsys):
     assert "proc2" not in out
 
 
-def test_right_block_aligns_lines_to_block_right_edge():
-    assert views.right_block(["a", "ab"], 10) == ["     a", "    ab"]
-    assert views.right_block(["ab", "ab"], 10) == ["    ab", "    ab"]
-
-
-def test_right_block_counts_ansi_as_invisible():
-    line = f"{views.CYAN}ab{views.RESET}"
-    assert views.right_block([line, "cd"], 10) == [f"    {line}", "    cd"]
-
-
-def test_right_block_keeps_empty_lines_blank():
-    assert views.right_block(["", "ab"], 10) == ["", "    ab"]
-
-
 def test_run_centered_passthrough_when_piped(monkeypatch, capsys):
     monkeypatch.setattr(views.sys.stdout, "isatty", lambda: False)
     views.run_centered(lambda: print("hola"))
     assert capsys.readouterr().out == "hola\n"
 
 
-def test_run_centered_left_when_tty_keeps_lines(monkeypatch, capsys):
+def test_run_centered_left_when_tty_centers_block(monkeypatch, capsys):
     monkeypatch.setattr(views.sys.stdout, "isatty", lambda: True)
     monkeypatch.setattr(views.shutil, "get_terminal_size", lambda *a, **k: (10, 24))
-    views.run_centered(lambda: print("ab"))
-    assert capsys.readouterr().out == "ab\n"
+    views.run_centered(lambda: print("a\nbbb"))
+    assert capsys.readouterr().out == "   a\n   bbb\n"
+
+
+def test_run_centered_center_when_tty(monkeypatch, capsys):
+    monkeypatch.setattr(views.sys.stdout, "isatty", lambda: True)
+    monkeypatch.setattr(views.shutil, "get_terminal_size", lambda *a, **k: (10, 24))
+    views.run_centered(lambda: print("a\nbbb"), align="center")
+    assert capsys.readouterr().out == "    a\n   bbb\n"
 
 
 def test_run_centered_right_when_tty(monkeypatch, capsys):
@@ -211,15 +204,27 @@ def test_run_centered_right_when_tty(monkeypatch, capsys):
     assert capsys.readouterr().out == "    ab\n"
 
 
-def test_align_options_only_implemented():
-    assert views.ALIGN_OPTIONS == ("left", "right")
+def test_align_options_implemented():
+    assert views.ALIGN_OPTIONS == ("left", "center", "right")
 
 
-def test_apply_align_left_is_identity():
-    assert views.apply_align(["a", "bb"], 10, "left") == ["a", "bb"]
+def test_align_block_left_keeps_block_centered():
+    assert views.align_block(["a", "bb"], 10, "left") == ["    a", "    bb"]
 
 
-def test_apply_align_right_delegates_to_right_block():
-    assert views.apply_align(["a", "bb"], 10, "right") == views.right_block(
-        ["a", "bb"], 10
-    )
+def test_align_block_center_centers_each_line():
+    assert views.align_block(["a", "bb"], 10, "center") == ["    a", "    bb"]
+    assert views.align_block(["aaa", "a"], 10, "center") == ["   aaa", "    a"]
+
+
+def test_align_block_right_aligns_to_block_right_edge():
+    assert views.align_block(["a", "bb"], 10, "right") == ["     a", "    bb"]
+
+
+def test_align_block_keeps_empty_lines_blank():
+    assert views.align_block(["", "ab"], 10, "left") == ["", "    ab"]
+
+
+def test_align_block_ignores_ansi_in_width():
+    line = f"{views.CYAN}ab{views.RESET}"
+    assert views.align_block([line], 10, "left") == [f"    {line}"]

@@ -17,8 +17,8 @@ from monitor import theme
 
 _ANSI = re.compile(r"\x1b\[[0-9;]*m")
 
-# Alineaciones implementadas (solo las que existen: left y right)
-ALIGN_OPTIONS = ("left", "right")
+# Alineaciones del texto dentro del contenedor (el bloque SIEMPRE queda centrado)
+ALIGN_OPTIONS = ("left", "center", "right")
 
 
 def vis_len(s: str) -> int:
@@ -26,19 +26,24 @@ def vis_len(s: str) -> int:
     return len(_ANSI.sub("", s))
 
 
-def right_block(lines: list[str], tw: int) -> list[str]:
-    """Centra el bloque (contenedor del ancho de su línea más larga) y alinea su
-    texto a la derecha: todas las líneas terminan en el borde derecho del bloque."""
+def align_block(lines: list[str], tw: int, align: str = "left") -> list[str]:
+    """Centra el bloque completo (contenedor del ancho de su línea más larga) y
+    alinea el texto de cada línea DENTRO de él: left | center | right."""
     content_width = max((vis_len(l) for l in lines), default=0)
-    right = (tw + content_width) // 2
-    return [l if not l else " " * max(0, right - vis_len(l)) + l for l in lines]
-
-
-def apply_align(lines: list[str], tw: int, align: str = "left") -> list[str]:
-    """Aplica la alineación configurada a las líneas ya renderizadas."""
-    if align == "right":
-        return right_block(lines, tw)
-    return lines
+    margin = max(0, (tw - content_width) // 2)
+    out: list[str] = []
+    for l in lines:
+        if not l:
+            out.append(l)
+            continue
+        slack = content_width - vis_len(l)
+        pad = margin
+        if align == "center":
+            pad = margin + slack // 2
+        elif align == "right":
+            pad = margin + slack
+        out.append(" " * max(0, pad) + l)
+    return out
 
 
 def flex_wrap(blocks: list[str], tw: int, gap: int = 2) -> list[str]:
@@ -464,7 +469,7 @@ def run_centered(fn, *args, align: str = "left", **kwargs) -> None:
         sys.stdout.flush()
         return
     tw, _ = shutil.get_terminal_size((80, 24))
-    for line in apply_align(text.rstrip("\n").split("\n"), tw, align):
+    for line in align_block(text.rstrip("\n").split("\n"), tw, align):
         print(line)
 
 
@@ -512,7 +517,7 @@ def loop_mode(args: object, threshold_bytes: int) -> None:
         lines = content.rstrip("\n").split("\n")
         out = ["\033[H"]
         out.extend("\033[K\n" for _ in range(pad))
-        for l in apply_align(lines, tw, args.align):
+        for l in align_block(lines, tw, args.align):
             out.append(f"{l}\033[K\n")
         out.append("\033[J")
         sys.stdout.write("".join(out))

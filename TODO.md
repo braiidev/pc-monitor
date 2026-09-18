@@ -5,6 +5,7 @@
 ## Next
 
 ## Done
+- [x] v0.9.16 feat: contenedor siempre centrado + alineación de texto left/center/right
 - [x] v0.9.15 feat: config de alineación left/right (--align, tecla a en live)
 - [x] v0.9.14 feat: bloque centrado con texto alineado a la derecha (right_block)
 - [x] v0.9.13 feat: centrado horizontal (one-shot + live) + auditoría (disk NVMe/eMMC, uninstall realpath, cleanups)
