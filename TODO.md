@@ -5,6 +5,7 @@
 ## Next
 
 ## Done
+- [x] v0.9.14 feat: bloque centrado con texto alineado a la derecha (right_block)
 - [x] v0.9.13 feat: centrado horizontal (one-shot + live) + auditoría (disk NVMe/eMMC, uninstall realpath, cleanups)
 - [x] v0.9.12 fix: top config ignorado (vistas fijas en 3) + clamp top 1-5
 - [x] v0.9.11 feat: top RAM/CPU en texto dim (full + short), rojo por umbral conservado

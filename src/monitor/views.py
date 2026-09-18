@@ -23,10 +23,12 @@ def vis_len(s: str) -> int:
     return len(_ANSI.sub("", s))
 
 
-def centered(line: str, tw: int) -> str:
-    """Devuelve `line` centrada en un ancho de terminal `tw` (sin romper ANSI)."""
-    pad = max(0, (tw - vis_len(line)) // 2)
-    return " " * pad + line
+def right_block(lines: list[str], tw: int) -> list[str]:
+    """Centra el bloque (contenedor del ancho de su línea más larga) y alinea su
+    texto a la derecha: todas las líneas terminan en el borde derecho del bloque."""
+    content_width = max((vis_len(l) for l in lines), default=0)
+    right = (tw + content_width) // 2
+    return [l if not l else " " * max(0, right - vis_len(l)) + l for l in lines]
 
 
 def flex_wrap(blocks: list[str], tw: int, gap: int = 2) -> list[str]:
@@ -436,8 +438,9 @@ def _restart_process(fd: int, old: object) -> None:
 
 
 def run_centered(fn, *args, **kwargs) -> None:
-    """Ejecuta `fn` capturando su salida y reemite cada línea centrada en la terminal.
-    Si stdout no es una tty (pipe/redirección), la salida pasa exactamente sin tocar."""
+    """Ejecuta `fn` capturando su salida y reemite el bloque centrado con el texto
+    alineado a la derecha. Si stdout no es una tty (pipe/redirección), la salida
+    pasa exactamente sin tocar."""
     buf = io.StringIO()
     old = sys.stdout
     sys.stdout = buf
@@ -451,8 +454,8 @@ def run_centered(fn, *args, **kwargs) -> None:
         sys.stdout.flush()
         return
     tw, _ = shutil.get_terminal_size((80, 24))
-    for line in text.rstrip("\n").split("\n"):
-        print(centered(line, tw))
+    for line in right_block(text.rstrip("\n").split("\n"), tw):
+        print(line)
 
 
 def loop_mode(args: object, threshold_bytes: int) -> None:
@@ -499,7 +502,8 @@ def loop_mode(args: object, threshold_bytes: int) -> None:
         lines = content.rstrip("\n").split("\n")
         out = ["\033[H"]
         out.extend("\033[K\n" for _ in range(pad))
-        out.extend(f"{centered(l, tw)}\033[K\n" for l in lines)
+        for l in right_block(lines, tw):
+            out.append(f"{l}\033[K\n")
         out.append("\033[J")
         sys.stdout.write("".join(out))
         sys.stdout.flush()

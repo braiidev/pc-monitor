@@ -177,17 +177,18 @@ def test_full_top_cpu_respects_args_top(monkeypatch, capsys):
     assert "proc2" not in out
 
 
-def test_centered_pads_visible_chars():
-    assert views.centered("ab", 10) == "    ab"
+def test_right_block_aligns_lines_to_block_right_edge():
+    assert views.right_block(["a", "ab"], 10) == ["     a", "    ab"]
+    assert views.right_block(["ab", "ab"], 10) == ["    ab", "    ab"]
 
 
-def test_centered_counts_ansi_as_invisible():
+def test_right_block_counts_ansi_as_invisible():
     line = f"{views.CYAN}ab{views.RESET}"
-    assert views.centered(line, 10) == f"    {line}"
+    assert views.right_block([line, "cd"], 10) == [f"    {line}", "    cd"]
 
 
-def test_centered_wide_line_no_padding():
-    assert views.centered("x" * 30, 20) == "x" * 30
+def test_right_block_keeps_empty_lines_blank():
+    assert views.right_block(["", "ab"], 10) == ["", "    ab"]
 
 
 def test_run_centered_passthrough_when_piped(monkeypatch, capsys):
