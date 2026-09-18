@@ -104,8 +104,9 @@ def _confirm(prompt: str) -> bool:
 
 
 def _cli_uninstall() -> int:
-    source = repo_root()
-    if not source.startswith(INSTALL_DIR_EXPECTED):
+    source = os.path.realpath(repo_root())
+    expected = os.path.realpath(INSTALL_DIR_EXPECTED)
+    if source != expected:
         print(
             "Error: el código no vive en una instalación vía install.sh; no se borra.",
             file=sys.stderr,
@@ -334,9 +335,9 @@ def main() -> None:
         if args.loop:
             views.loop_mode(args, threshold_bytes)
         elif args.short:
-            views.short_info(args, threshold_bytes)
+            views.run_centered(views.short_info, args, threshold_bytes)
         else:
-            views.full_info(args, threshold_bytes)
+            views.run_centered(views.full_info, args, threshold_bytes)
     except KeyboardInterrupt:
         sys.exit(0)
     except FileNotFoundError as e:

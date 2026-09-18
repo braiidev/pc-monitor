@@ -23,6 +23,12 @@ def vis_len(s: str) -> int:
     return len(_ANSI.sub("", s))
 
 
+def centered(line: str, tw: int) -> str:
+    """Devuelve `line` centrada en un ancho de terminal `tw` (sin romper ANSI)."""
+    pad = max(0, (tw - vis_len(line)) // 2)
+    return " " * pad + line
+
+
 def flex_wrap(blocks: list[str], tw: int, gap: int = 2) -> list[str]:
     """Acomoda bloques de ancho variable en líneas de `tw` cols, con `gap` de separación.
     Un bloque más ancho que `tw` se mantiene entero (nunca se corta a mitad de ANSI)."""
@@ -251,7 +257,7 @@ def full_info(args: object, threshold_bytes: int, footer: str = "") -> None:
         t1 = {pid: readers.cpu_time(pid) for _, pid, _ in candidates}
         time.sleep(0.1)
         cpu_procs: list[tuple[float, str, str]] = []
-        for rss, pid, name in candidates:
+        for _rss, pid, name in candidates:
             before_t, after_t = t1.get(pid), readers.cpu_time(pid)
             if before_t is None or after_t is None:
                 continue
@@ -429,6 +435,26 @@ def _restart_process(fd: int, old: object) -> None:
     os.execv(sys.executable, [sys.executable, "-m", "monitor", *sys.argv[1:]])
 
 
+def run_centered(fn, *args, **kwargs) -> None:
+    """Ejecuta `fn` capturando su salida y reemite cada línea centrada en la terminal.
+    Si stdout no es una tty (pipe/redirección), la salida pasa exactamente sin tocar."""
+    buf = io.StringIO()
+    old = sys.stdout
+    sys.stdout = buf
+    try:
+        fn(*args, **kwargs)
+    finally:
+        sys.stdout = old
+    text = buf.getvalue()
+    if not sys.stdout.isatty():
+        sys.stdout.write(text)
+        sys.stdout.flush()
+        return
+    tw, _ = shutil.get_terminal_size((80, 24))
+    for line in text.rstrip("\n").split("\n"):
+        print(centered(line, tw))
+
+
 def loop_mode(args: object, threshold_bytes: int) -> None:
     if not sys.stdin.isatty():
         print("El modo en vivo (--live) requiere una terminal.", file=sys.stderr)
@@ -473,7 +499,7 @@ def loop_mode(args: object, threshold_bytes: int) -> None:
         lines = content.rstrip("\n").split("\n")
         out = ["\033[H"]
         out.extend("\033[K\n" for _ in range(pad))
-        out.extend(f"{l}\033[K\n" for l in lines)
+        out.extend(f"{centered(l, tw)}\033[K\n" for l in lines)
         out.append("\033[J")
         sys.stdout.write("".join(out))
         sys.stdout.flush()

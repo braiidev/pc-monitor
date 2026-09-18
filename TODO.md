@@ -1,11 +1,12 @@
 # TODO
 
 ## Doing
-- [ ] v0.9.12 fix: top config ignorado (vistas fijas en 3) + clamp top 1-5
 
 ## Next
 
 ## Done
+- [x] v0.9.13 feat: centrado horizontal (one-shot + live) + auditoría (disk NVMe/eMMC, uninstall realpath, cleanups)
+- [x] v0.9.12 fix: top config ignorado (vistas fijas en 3) + clamp top 1-5
 - [x] v0.9.11 feat: top RAM/CPU en texto dim (full + short), rojo por umbral conservado
 - [x] v0.9.10 feat: flag --config (reemplaza --theme-custom) + default inicial one-shot full (loop/short = false)
 - [x] v0.9.8 feat: toggles 9/0 efectivos (reloj/decor en vistas) + config por pantalla (tecla c)

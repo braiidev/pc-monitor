@@ -89,3 +89,35 @@ def test_read_meminfo_parses_kb_to_bytes(monkeypatch, tmp_path):
     d = readers.read_meminfo()
     assert d["MemTotal"] == 16384 * 1024
     assert d["MemFree"] == 2048 * 1024
+
+
+def _write_diskstats(tmp_path: Path, data: str) -> Path:
+    proc = tmp_path / "proc"
+    proc.mkdir(parents=True, exist_ok=True)
+    (proc / "diskstats").write_text(data)
+    return proc
+
+
+def test_disk_stats_keeps_disks_and_drops_partitions(monkeypatch, tmp_path):
+    # rows: major minor name rio rmerge rsect(5) ruse wio wmerge wsect(9) wuse ...
+    row = "1 0 {name} 1000 0 8000 0 0 0 9000 0 0 0 0"
+    proc = _write_diskstats(
+        tmp_path,
+        "\n".join(
+            [
+                row.format(name="sda"),
+                row.format(name="sda1"),
+                row.format(name="vda3"),
+                row.format(name="nvme0n1"),
+                row.format(name="nvme0n1p1"),
+                row.format(name="mmcblk0"),
+                row.format(name="mmcblk0p1"),
+                row.format(name="loop0"),
+                row.format(name="ram0"),
+            ]
+        ),
+    )
+    monkeypatch.setattr(readers, "PROC_PATH", proc)
+    stats = readers.disk_stats()
+    assert set(stats) == {"sda", "nvme0n1", "mmcblk0"}
+    assert stats["nvme0n1"] == (8000 * 512, 9000 * 512)

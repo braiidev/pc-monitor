@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 
 PROC_PATH = Path("/proc")
@@ -65,9 +66,13 @@ def disk_stats() -> dict[str, tuple[int, int]]:
                 if len(parts) < 10:
                     continue
                 name = parts[2]
-                if name[-1].isdigit() and not name.startswith("loop"):
-                    continue  # ignorar particiones individuales
                 if name.startswith(("loop", "ram")):
+                    continue
+                # Las particiones terminan en dígito, pero los discos NVMe/eMMC
+                # (nvme0n1, mmcblk0) también: se conservan porque son el dispositivo.
+                if name[-1].isdigit() and not re.fullmatch(
+                    r"(nvme\d+n\d+|mmcblk\d+)", name
+                ):
                     continue
                 sectors_read, sectors_written = int(parts[5]), int(parts[9])
                 stats[name] = (sectors_read * 512, sectors_written * 512)

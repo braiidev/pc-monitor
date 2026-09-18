@@ -175,3 +175,29 @@ def test_full_top_cpu_respects_args_top(monkeypatch, capsys):
     assert "proc5" in out and "proc4" in out  # top 2 por CPU (orden desc)
     assert "proc3" not in out
     assert "proc2" not in out
+
+
+def test_centered_pads_visible_chars():
+    assert views.centered("ab", 10) == "    ab"
+
+
+def test_centered_counts_ansi_as_invisible():
+    line = f"{views.CYAN}ab{views.RESET}"
+    assert views.centered(line, 10) == f"    {line}"
+
+
+def test_centered_wide_line_no_padding():
+    assert views.centered("x" * 30, 20) == "x" * 30
+
+
+def test_run_centered_passthrough_when_piped(monkeypatch, capsys):
+    monkeypatch.setattr(views.sys.stdout, "isatty", lambda: False)
+    views.run_centered(lambda: print("hola"))
+    assert capsys.readouterr().out == "hola\n"
+
+
+def test_run_centered_centers_lines_when_tty(monkeypatch, capsys):
+    monkeypatch.setattr(views.sys.stdout, "isatty", lambda: True)
+    monkeypatch.setattr(views.shutil, "get_terminal_size", lambda *a, **k: (10, 24))
+    views.run_centered(lambda: print("ab"))
+    assert capsys.readouterr().out == "    ab\n"
