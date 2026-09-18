@@ -197,8 +197,29 @@ def test_run_centered_passthrough_when_piped(monkeypatch, capsys):
     assert capsys.readouterr().out == "hola\n"
 
 
-def test_run_centered_centers_lines_when_tty(monkeypatch, capsys):
+def test_run_centered_left_when_tty_keeps_lines(monkeypatch, capsys):
     monkeypatch.setattr(views.sys.stdout, "isatty", lambda: True)
     monkeypatch.setattr(views.shutil, "get_terminal_size", lambda *a, **k: (10, 24))
     views.run_centered(lambda: print("ab"))
+    assert capsys.readouterr().out == "ab\n"
+
+
+def test_run_centered_right_when_tty(monkeypatch, capsys):
+    monkeypatch.setattr(views.sys.stdout, "isatty", lambda: True)
+    monkeypatch.setattr(views.shutil, "get_terminal_size", lambda *a, **k: (10, 24))
+    views.run_centered(lambda: print("ab"), align="right")
     assert capsys.readouterr().out == "    ab\n"
+
+
+def test_align_options_only_implemented():
+    assert views.ALIGN_OPTIONS == ("left", "right")
+
+
+def test_apply_align_left_is_identity():
+    assert views.apply_align(["a", "bb"], 10, "left") == ["a", "bb"]
+
+
+def test_apply_align_right_delegates_to_right_block():
+    assert views.apply_align(["a", "bb"], 10, "right") == views.right_block(
+        ["a", "bb"], 10
+    )

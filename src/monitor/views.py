@@ -17,6 +17,9 @@ from monitor import theme
 
 _ANSI = re.compile(r"\x1b\[[0-9;]*m")
 
+# Alineaciones implementadas (solo las que existen: left y right)
+ALIGN_OPTIONS = ("left", "right")
+
 
 def vis_len(s: str) -> int:
     """Largo visible de un string con códigos ANSI (los escapes no cuentan)."""
@@ -29,6 +32,13 @@ def right_block(lines: list[str], tw: int) -> list[str]:
     content_width = max((vis_len(l) for l in lines), default=0)
     right = (tw + content_width) // 2
     return [l if not l else " " * max(0, right - vis_len(l)) + l for l in lines]
+
+
+def apply_align(lines: list[str], tw: int, align: str = "left") -> list[str]:
+    """Aplica la alineación configurada a las líneas ya renderizadas."""
+    if align == "right":
+        return right_block(lines, tw)
+    return lines
 
 
 def flex_wrap(blocks: list[str], tw: int, gap: int = 2) -> list[str]:
@@ -370,7 +380,7 @@ TOAST_SECONDS = 3.0
 HELP_FOOTER = (
     "[1]RAM [2]CPU [3]SWP [4]VRAM [5]DSK [6]NET "
     "[7]TopRAM [8]TopCPU [9]Reloj [0]Decor  |  "
-    "[m]modo [c]config [t]tema [u]update [?]ayuda [q]salir"
+    "[m]modo [c]config [t]tema [a]alinear [u]update [?]ayuda [q]salir"
 )
 
 
@@ -437,10 +447,10 @@ def _restart_process(fd: int, old: object) -> None:
     os.execv(sys.executable, [sys.executable, "-m", "monitor", *sys.argv[1:]])
 
 
-def run_centered(fn, *args, **kwargs) -> None:
-    """Ejecuta `fn` capturando su salida y reemite el bloque centrado con el texto
-    alineado a la derecha. Si stdout no es una tty (pipe/redirección), la salida
-    pasa exactamente sin tocar."""
+def run_centered(fn, *args, align: str = "left", **kwargs) -> None:
+    """Ejecuta `fn` capturando su salida y reemite el bloque con la alineación
+    indicada (`ALIGN_OPTIONS`). Si stdout no es una tty (pipe/redirección), la
+    salida pasa exactamente sin tocar."""
     buf = io.StringIO()
     old = sys.stdout
     sys.stdout = buf
@@ -454,7 +464,7 @@ def run_centered(fn, *args, **kwargs) -> None:
         sys.stdout.flush()
         return
     tw, _ = shutil.get_terminal_size((80, 24))
-    for line in right_block(text.rstrip("\n").split("\n"), tw):
+    for line in apply_align(text.rstrip("\n").split("\n"), tw, align):
         print(line)
 
 
@@ -502,7 +512,7 @@ def loop_mode(args: object, threshold_bytes: int) -> None:
         lines = content.rstrip("\n").split("\n")
         out = ["\033[H"]
         out.extend("\033[K\n" for _ in range(pad))
-        for l in right_block(lines, tw):
+        for l in apply_align(lines, tw, args.align):
             out.append(f"{l}\033[K\n")
         out.append("\033[J")
         sys.stdout.write("".join(out))
@@ -549,6 +559,15 @@ def loop_mode(args: object, threshold_bytes: int) -> None:
                 if k == "c":
                     config_mode = True
                     render()
+                    continue
+                if k == "a":
+                    i = ALIGN_OPTIONS.index(args.align)
+                    args.align = ALIGN_OPTIONS[(i + 1) % len(ALIGN_OPTIONS)]
+                    if not args.no_config:
+                        from monitor.config import config_from_args, save_config
+
+                        save_config(config_from_args(args))
+                    render()  # feedback inmediato con la nueva alineación
                     continue
                 if k == "t":
                     theme.cycle_theme()

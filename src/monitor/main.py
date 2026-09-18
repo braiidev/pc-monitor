@@ -211,6 +211,12 @@ def build_parser(cfg: dict[str, dict[str, object]]) -> argparse.ArgumentParser:
     p.add_argument(
         "--theme", default=g["theme"], help=f"Tema de color ({theme_choices})"
     )
+    align_choices = ", ".join(views.ALIGN_OPTIONS)
+    p.add_argument(
+        "--align",
+        default=g["align"],
+        help=f"Alineación del contenido ({align_choices})",
+    )
     p.add_argument(
         "--disk",
         action=argparse.BooleanOptionalAction,
@@ -335,9 +341,11 @@ def main() -> None:
         if args.loop:
             views.loop_mode(args, threshold_bytes)
         elif args.short:
-            views.run_centered(views.short_info, args, threshold_bytes)
+            views.run_centered(
+                views.short_info, args, threshold_bytes, align=args.align
+            )
         else:
-            views.run_centered(views.full_info, args, threshold_bytes)
+            views.run_centered(views.full_info, args, threshold_bytes, align=args.align)
     except KeyboardInterrupt:
         sys.exit(0)
     except FileNotFoundError as e:

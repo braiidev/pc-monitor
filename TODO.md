@@ -5,6 +5,7 @@
 ## Next
 
 ## Done
+- [x] v0.9.15 feat: config de alineación left/right (--align, tecla a en live)
 - [x] v0.9.14 feat: bloque centrado con texto alineado a la derecha (right_block)
 - [x] v0.9.13 feat: centrado horizontal (one-shot + live) + auditoría (disk NVMe/eMMC, uninstall realpath, cleanups)
 - [x] v0.9.12 fix: top config ignorado (vistas fijas en 3) + clamp top 1-5

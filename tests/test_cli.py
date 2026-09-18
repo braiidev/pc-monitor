@@ -35,6 +35,7 @@ def test_help(monkeypatch, capsys):
         "--top",
         "--interval",
         "--theme",
+        "--align",
         "--ram",
         "--cpu",
         "--swap",
@@ -98,6 +99,14 @@ def test_parse_top_default_follows_config():
     assert _parse([]).top == config.DEFAULT_CONFIG["general"]["top"]
 
 
+def test_parse_align_default_follows_config():
+    assert _parse([]).align == config.DEFAULT_CONFIG["general"]["align"] == "left"
+
+
+def test_parse_align_flag():
+    assert _parse(["--align", "right"]).align == "right"
+
+
 def test_config_edit_field_clamps_top_1_5(monkeypatch):
     ns = type("A", (), {"top": 3, "threshold": 1.0, "interval": 2.0})()
     monkeypatch.setattr("builtins.input", lambda *a: "9")
@@ -131,7 +140,7 @@ def test_help_footer_includes_update_key():
 def test_help_footer_lists_all_toggle_keys():
     for k in views.TOGGLE_KEYS:
         assert f"[{k}]" in views.HELP_FOOTER
-    for action in ("m", "c", "t", "?", "q"):
+    for action in ("m", "c", "t", "a", "u", "?", "q"):
         assert f"[{action}]" in views.HELP_FOOTER
 
 

@@ -23,6 +23,7 @@ DEFAULT_CONFIG = {
         "threshold": 1.0,
         "top": 5,
         "interval": 2.0,
+        "align": "left",
         "theme": "clasico",
     },
     "sections": {
@@ -47,7 +48,7 @@ DEFAULT_CONFIG = {
 
 # orden fijo para que el archivo escrito quede siempre legible/estable
 _CONFIG_LAYOUT = {
-    "general": ["loop", "short", "threshold", "top", "interval", "theme"],
+    "general": ["loop", "short", "threshold", "top", "interval", "align", "theme"],
     "sections": [
         "ram",
         "cpu",
@@ -178,6 +179,7 @@ def config_from_args(args: object) -> dict[str, dict[str, object]]:
             "threshold": args.threshold,
             "top": args.top,
             "interval": args.interval,
+            "align": args.align,
             "theme": args.theme,
         },
         "sections": {

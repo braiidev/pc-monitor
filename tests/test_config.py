@@ -102,6 +102,47 @@ def test_load_tolerates_broken_or_partial(tmp_path, monkeypatch, content):
     assert cfg["sections"]["swap"] is True
 
 
+def test_default_align_is_left(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "CONFIG_PATH", tmp_path / "monitor" / "config.toml")
+    monkeypatch.setattr(config, "LEGACY_CONFIG_PATH", tmp_path / "monitor.toml")
+    assert config.load_config()["general"]["align"] == "left"
+
+
+def test_config_from_args_includes_align(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "CONFIG_PATH", tmp_path / "monitor" / "config.toml")
+    monkeypatch.setattr(config, "LEGACY_CONFIG_PATH", tmp_path / "monitor.toml")
+    args = type(
+        "A",
+        (),
+        {
+            "loop": False,
+            "short": True,
+            "threshold": 1.0,
+            "top": 5,
+            "interval": 2.0,
+            "align": "right",
+            "theme": "clasico",
+            "ram": True,
+            "cpu": True,
+            "swap": True,
+            "vram": True,
+            "disk": False,
+            "network": False,
+            "top_procs": True,
+            "top_cpu": True,
+            "clock": True,
+            "decor": True,
+        },
+    )()
+    out = config.config_from_args(args)
+    assert out["general"]["align"] == "right"
+
+
+def test_writer_serializes_align(tmp_path):
+    cfg = config._deep_merge_defaults({})
+    assert 'align = "left"' in config._write_toml_lite(cfg)
+
+
 def test_custom_palette_persists_roundtrip(tmp_path, monkeypatch):
     new = tmp_path / "monitor" / "config.toml"
     monkeypatch.setattr(config, "CONFIG_PATH", new)
