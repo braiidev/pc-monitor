@@ -4,6 +4,61 @@
 
 ## Next
 
+### 🔧 FIX — install.sh sobrevive al upgrade a Ubuntu 26.04 (Python 3.14)
+
+**Síntoma:** en la máquina `.38` (actualizada 24.04 → 26.04) `monitor` dejó de arrancar.
+
+**Causa raíz — el symlink flotante, no el número de versión.** `python3 -m venv` crea:
+
+```
+.venv/bin/python -> python3
+.venv/bin/python3 -> /usr/bin/python3     ← flotante
+```
+
+`/usr/bin/python3` siempre resuelve a la última versión. El venv declara `version = 3.12.3` pero
+ejecuta lo que haya. Al subir a 26.04 el shebang de `.venv/bin/monitor` siguió resolviendo (3.14), así
+que no hubo "comando no encontrado": corrió 3.14 sobre layout 3.12 → buscó
+`lib/python3.14/site-packages`, no lo encontró, el editable quedó invisible → `ModuleNotFoundError`.
+
+**Trampa de fondo:** el symlink moría con el venv, así que `monitor --update` tampoco servía para
+reparar. La salida estaba dentro de lo roto.
+
+**Verificado empíricamente** (3 formas de crear venv, mismo repo):
+
+| Método | `.venv/bin/python` apunta a | ¿Sobrevive upgrade del SO? |
+|---|---|---|
+| `python3 -m venv` | `/usr/bin/python3` ← flotante | ❌ se rompe en silencio |
+| `python3.14 -m venv` | `/usr/bin/python3.14` | ✅ |
+| `uv venv --python /usr/bin/python3.14` | `/usr/bin/python3.14` | ✅ |
+
+**Decisión para monitor — opción B: Python del sistema versionado, detectado.** Invocar la ruta
+versionada y **persistir la versión en `.pinned-python`** para que `--update` sepa qué validar.
+Justificación: `dependencies = []`, stdlib puro. uv agregaría una dependencia rompible sin comprar
+nada (0 MB, sin red para el intérprete).
+
+- [ ] v0.9.17: acota `requires-python` de `>=3.9` a `>=3.10,<3.15`. **Sin** `uv.lock`: sin deps no hay nada que resolver
+- [ ] v0.9.18: install.sh — resolver el `/usr/bin/python3.X` versionado más nuevo del rango + **persistirlo en `.pinned-python`**
+- [ ] v0.9.19: install.sh — recrear el venv con la ruta versionada (nunca con `python3`); auto-reparar si `.venv/bin/python` no responde o su versión ≠ la pineada
+- [ ] v0.9.20: wrapper `~/.local/bin/monitor` en vez de symlink — valida venv + versión pineada, repara o imprime el comando exacto
+- [ ] v0.9.21: `update.py` — `do_update()` valida la versión pineada y reconstruye el venv si el SO subió de minor (reusa el patrón de clock)
+- [ ] v0.9.22: smoke test final (`monitor --version`) con salida ≠ 0 si falla + append idempotente de `~/.local/bin` al PATH
+- [ ] v0.9.23: regenerar `~/Dev/MonitorPC/.venv` (entorno de desarrollo, separado del instalado) + test del escenario real (venv flotante → se detecta y repara) + README
+
+**Entrega:** un solo commit (v0.9.17-v0.9.23 unificados) + `git tag v0.9.17`, con este bloque como registro.
+
+**⚠️ Trampa propia de este repo — corregir antes que nada lo del wrapper:**
+`install.sh:48` tiene `if [ -e "$BIN" ] && [ ! -L "$BIN" ]; then mv "$BIN" "$BIN.bak"`.
+Al pasar a wrapper (archivo regular, no symlink) eso respaldaría **nuestro propio wrapper en cada
+reinstalación**. El criterio tiene que pasar a detectar nuestro marcador dentro del archivo, no
+"es un archivo regular".
+
+**No tocar:** `--uninstall` sigue funcionando (`os.unlink` borra symlink o archivo regular, y usa
+`realpath` para validar que el repo viva en `~/.local/share/pc-monitor`); la config en `~/.config/monitor`
+queda intacta.
+
+**Nota:** se sirve desde `raw.githubusercontent.com/braiidev/pc-monitor/main/install.sh`. El fix no
+llega a otra máquina hasta que esté pusheado a `main`.
+
 ## Done
 - [x] v0.9.16 feat: contenedor siempre centrado + alineación de texto left/center/right
 - [x] v0.9.15 feat: config de alineación left/right (--align, tecla a en live)
