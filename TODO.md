@@ -52,9 +52,27 @@ porque `cat > $BIN` escribe atravesando symlinks.
 **Nota:** se sirve desde `raw.githubusercontent.com/braiidev/pc-monitor/main/install.sh`. El fix no
 llega a otra máquina hasta que esté pusheado a `main`.
 
+### 🔧 FIX — un cfg parcial trunca la config del usuario — CERRADO v0.9.19
+**Síntoma:** en esta PC la config se "reiniciaba" al salir y volver a entrar de `monitor`.
+
+**Lo que se pudo probar (sin adivinar):**
+- `install.sh` es inocente: md5 de `~/.config/monitor/config.toml` idéntico antes y después
+- El round-trip `load_config()` → `save_config()` es correcto: 313 → 782 bytes, conserva todo
+- En modo live los toggles SÍ se guardan: verificado con pty real e instrumentación (`save_config` recibe `disk=False` y el archivo queda `disk = false`)
+- Los 519 bytes observados son **exactamente** `_write_toml_lite({"general": {"theme"}, "sections": {}, "custom": {}})`: un dict **sin el merge de defaults**, reproducido byte a byte
+- Ningún call site del código actual produce eso. Quedó sin poder probar quién lo escribió
+
+**El bug real:** `_write_toml_lite` saltea toda clave ausente del dict, así que cualquier cfg parcial que llegara a `save_config` vaciaba las secciones y se llevaba lo que el usuario tenía. Un dict incompleto se convertía en pérdida de datos.
+
+- [x] `_fill_missing()`: `save_config()` completa con `DEFAULT_CONFIG` lo que falta, sin pisar lo presente. Las tres secciones se escriben siempre completas
+- [x] 3 tests de regresión: un cfg parcial no trunca, respeta lo presente, no muta la entrada
+
+**Restos del "monolito" en esta PC** (la diferencia con otras máquinas): `~/.local/bin/monitor.bak` (21 KB, ago 25) y `~/.local/bin/__pycache__/monitorcpython-312.pyc` (jul 3, sin código de config). El `.bak` escribe en `~/.config/monitor.toml` (legacy), no en `config.toml`. A borrar con aprobación del usuario.
+
 ### Pendiente
-- [ ] v0.9.19: los 59 errores de mypy preexistentes en `main.py`, `config.py` y `views.py` (el proyecto no tiene config de mypy; `update.py` ya está limpio)
-- [ ] v0.9.20: `test_footer_oculto_si_no_cabe_o_config_off` de Clock (preexistente desde v0.55)
+- [ ] v0.9.20: los 59 errores de mypy de `main.py`, `config.py` y `views.py` (preexistentes; el proyecto no tiene config de mypy. Todos son `attr-defined` por funciones que toman `args: object` en vez de `argparse.Namespace`)
+- [ ] v0.9.21: `test_footer_oculto_si_no_cabe_o_config_off` de Clock (preexistente desde v0.55)
+- [ ] v0.9.22: borrar `~/.local/bin/monitor.bak` y el `__pycache__` viejo (esperando OK)
 
 ## Done
 - [x] v0.9.18 fix: install.sh sobrevive al upgrade del SO (pin versionado + wrapper con auto-reparación)
