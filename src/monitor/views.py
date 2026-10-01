@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import io
 import os
 import re
@@ -10,6 +11,8 @@ import shutil
 import sys
 import termios
 import time
+from collections.abc import Callable
+from typing import Any
 
 from monitor import formatting as fmt
 from monitor import readers
@@ -82,6 +85,10 @@ def divider_with(w: int, center: str = "") -> str:
 # Colores dinámicos: resuelven el código ANSI del tema activo al imprimirse,
 # así la tecla "t" puede cambiar el tema en vivo dentro del modo --live.
 class _ThemeColor(str):
+    # str no tiene __dict__: sin esta declaración mypy no ve el atributo que se
+    # asigna en __new__ y __format__/__str__ quedan como attr-defined.
+    role: str
+
     def __new__(cls, role: str) -> "_ThemeColor":
         obj = super().__new__(cls, "")
         obj.role = role
@@ -90,7 +97,7 @@ class _ThemeColor(str):
     def __format__(self, spec: str) -> str:
         return format(theme.c(self.role), spec)
 
-    def __str__(self) -> str:  # type: ignore[override]
+    def __str__(self) -> str:
         return theme.c(self.role)
 
 
@@ -140,7 +147,7 @@ def _build_footer(
 # ────────────────────────── vistas ──────────────────────────
 
 
-def full_info(args: object, threshold_bytes: int, footer: str = "") -> None:
+def full_info(args: argparse.Namespace, threshold_bytes: int, footer: str = "") -> None:
     tw, _ = shutil.get_terminal_size((80, 30))
     w = tw
     dec = getattr(args, "decor", True)
@@ -227,12 +234,12 @@ def full_info(args: object, threshold_bytes: int, footer: str = "") -> None:
             w,
         ):
             print(line)
-        before = readers.disk_stats()
+        dsk_before = readers.disk_stats()
         time.sleep(0.2)
-        after = readers.disk_stats()
+        dsk_after = readers.disk_stats()
         io_blocks: list[str] = []
-        for name, (r_after, w_after) in after.items():
-            r_before, w_before = before.get(name, (r_after, w_after))
+        for name, (r_after, w_after) in dsk_after.items():
+            r_before, w_before = dsk_before.get(name, (r_after, w_after))
             read_rate = (r_after - r_before) / 0.2
             write_rate = (w_after - w_before) / 0.2
             if read_rate or write_rate:
@@ -244,13 +251,13 @@ def full_info(args: object, threshold_bytes: int, footer: str = "") -> None:
 
     if getattr(args, "network", False):
         _section(dec, "RED")
-        before = readers.net_stats()
+        net_before = readers.net_stats()
         time.sleep(0.2)
-        after = readers.net_stats()
-        if after:
+        net_after = readers.net_stats()
+        if net_after:
             net_blocks: list[str] = []
-            for iface, (rx_after, tx_after) in after.items():
-                rx_before, tx_before = before.get(iface, (rx_after, tx_after))
+            for iface, (rx_after, tx_after) in net_after.items():
+                rx_before, tx_before = net_before.get(iface, (rx_after, tx_after))
                 rx_rate = (rx_after - rx_before) / 0.2
                 tx_rate = (tx_after - tx_before) / 0.2
                 net_blocks.append(
@@ -292,7 +299,9 @@ def full_info(args: object, threshold_bytes: int, footer: str = "") -> None:
         print(footer)
 
 
-def short_info(args: object, threshold_bytes: int, footer: str = "") -> None:
+def short_info(
+    args: argparse.Namespace, threshold_bytes: int, footer: str = ""
+) -> None:
     tw, _ = shutil.get_terminal_size((40, 20))
     w = min(tw, 40)
     dec = getattr(args, "decor", True)
@@ -389,7 +398,7 @@ HELP_FOOTER = (
 )
 
 
-def _config_screen(args: object, w: int) -> None:
+def _config_screen(args: argparse.Namespace, w: int) -> None:
     """Pantalla de configuración (tecla c): lista de campos numerados."""
     print(f"{BOLD}{CYAN}── CONFIG ──{RESET}")
     print(
@@ -402,7 +411,7 @@ def _config_screen(args: object, w: int) -> None:
     print(f"  {DIM}[1-3] editar · [0/esc/q] volver{RESET}")
 
 
-def _config_edit_field(args: object, key: str) -> None:
+def _config_edit_field(args: argparse.Namespace, key: str) -> None:
     """Edita el campo correspondiente a la tecla 1/2/3 dentro del navegador de config."""
     try:
         if key == "1":
@@ -441,7 +450,7 @@ def _apply_update() -> bool:
     return res.ok
 
 
-def _restart_process(fd: int, old: object) -> None:
+def _restart_process(fd: int, old: list[Any]) -> None:
     """Re-ejecuta el proceso (tras una actualización): restaura terminal y execv."""
     try:
         termios.tcsetattr(fd, termios.TCSADRAIN, old)
@@ -452,7 +461,12 @@ def _restart_process(fd: int, old: object) -> None:
     os.execv(sys.executable, [sys.executable, "-m", "monitor", *sys.argv[1:]])
 
 
-def run_centered(fn, *args, align: str = "left", **kwargs) -> None:
+def run_centered(
+    fn: Callable[..., None],
+    *args: Any,
+    align: str = "left",
+    **kwargs: Any,
+) -> None:
     """Ejecuta `fn` capturando su salida y reemite el bloque con la alineación
     indicada (`ALIGN_OPTIONS`). Si stdout no es una tty (pipe/redirección), la
     salida pasa exactamente sin tocar."""
@@ -473,7 +487,7 @@ def run_centered(fn, *args, align: str = "left", **kwargs) -> None:
         print(line)
 
 
-def loop_mode(args: object, threshold_bytes: int) -> None:
+def loop_mode(args: argparse.Namespace, threshold_bytes: int) -> None:
     if not sys.stdin.isatty():
         print("El modo en vivo (--live) requiere una terminal.", file=sys.stderr)
         sys.exit(1)

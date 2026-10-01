@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import os
 import re
 from pathlib import Path
@@ -16,7 +17,7 @@ LEGACY_CONFIG_PATH = (
     / "monitor.toml"
 )
 
-DEFAULT_CONFIG = {
+DEFAULT_CONFIG: dict[str, dict[str, object]] = {
     "general": {
         "loop": False,
         "short": False,
@@ -172,10 +173,7 @@ def _fill_missing(cfg: dict[str, dict[str, object]]) -> dict[str, dict[str, obje
     """
     filled: dict[str, dict[str, object]] = {}
     for section, defaults in DEFAULT_CONFIG.items():
-        filled[section] = {
-            **defaults,  # type: ignore[dict-item]
-            **cfg.get(section, {}),
-        }
+        filled[section] = {**defaults, **cfg.get(section, {})}
     return filled
 
 
@@ -187,7 +185,7 @@ def save_config(cfg: dict[str, dict[str, object]]) -> None:
         pass  # no interrumpir el monitor por un problema de disco al guardar preferencias
 
 
-def config_from_args(args: object) -> dict[str, dict[str, object]]:
+def config_from_args(args: argparse.Namespace) -> dict[str, dict[str, object]]:
     from monitor import theme
 
     return {

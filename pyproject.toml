@@ -14,3 +14,14 @@ monitor = "monitor.main:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.mypy]
+# strict desde v0.9.20: los 59 errores previos eran casi todos firmas `args: object`
+# en vez de argparse.Namespace, más variables reusadas con dos tipos distintos.
+# Verificar: .venv/bin/python -m mypy --strict src/monitor/
+strict = true
+files = ["src/monitor"]
+
+[tool.black]
+line-length = 88
+target-version = ["py310"]

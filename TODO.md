@@ -70,11 +70,29 @@ llega a otra máquina hasta que esté pusheado a `main`.
 **Restos del "monolito" en esta PC** (la diferencia con otras máquinas): `~/.local/bin/monitor.bak` (21 KB, ago 25) y `~/.local/bin/__pycache__/monitorcpython-312.pyc` (jul 3, sin código de config). El `.bak` escribe en `~/.config/monitor.toml` (legacy), no en `config.toml`. A borrar con aprobación del usuario.
 
 ### Pendiente
-- [ ] v0.9.20: los 59 errores de mypy de `main.py`, `config.py` y `views.py` (preexistentes; el proyecto no tiene config de mypy. Todos son `attr-defined` por funciones que toman `args: object` en vez de `argparse.Namespace`)
 - [ ] v0.9.21: `test_footer_oculto_si_no_cabe_o_config_off` de Clock (preexistente desde v0.55)
 - [ ] v0.9.22: borrar `~/.local/bin/monitor.bak` y el `__pycache__` viejo (esperando OK)
 
+### 🔧 FIX — mypy limpio, strict incluido — CERRADO v0.9.20
+**Estado anterior:** 59 errores sin config de mypy. Todos eran higiene de tipos, ningún bug de runtime.
+
+Seis causas distintas, seis arreglos:
+
+- [x] **35 `attr-defined`** — 8 funciones con `args: object` en vez de `argparse.Namespace`: `config_from_args`, `full_info`, `short_info`, `_config_screen`, `_config_edit_field`, `loop_mode`
+- [x] **6 errores de reuso de variable** — `before`/`after` se usaban primero para `list[str]` (CPU) y después para `dict` (disco, red), así que mypy los fijó al primer tipo. Separados en `dsk_before/after` y `net_before/after`
+- [x] **3 errores de reuso de variable en main.py** — `p` era `str` en el loop de `targets` y `Path` en el de configs. Segundo loop renombrado a `cfg_path`
+- [x] **3 `_ThemeColor.role`** — `str` no tiene `__dict__`, así que mypy no veía el atributo asignado en `__new__`. Declaración a nivel de clase
+- [x] **5 errores de `DEFAULT_CONFIG`** — al no anotarse se infería `dict[str, object]` (mezcla bool/float/int/str) y contaminaba `dict(v)`, `{**defaults}` y `_write_toml_lite`. Anotada como `dict[str, dict[str, object]]`
+- [x] **`_restart_process(old: object)`** y `run_centered(fn, ...)` sin anotación: `list[Any]` y `Callable[..., None]`
+
+- [x] `pyproject.toml` ahora tiene `[tool.mypy] strict = true` + `files`, así que `mypy` a secas ya aplica strict. También `[tool.black]` con `target-version = py310` (el default de black asumía 3.14 y no podía parsear el código)
+- [x] Black formateó 1 archivo; 121 tests y E2E 43/43 sin cambios de comportamiento
+
+**Verificación:** `mypy` (strict, sin flags) → `Success: no issues found in 9 source files`.
+
 ## Done
+- [x] v0.9.20 chore: mypy strict limpio (59 → 0) + config en pyproject
+- [x] v0.9.19 fix: un cfg parcial ya no puede truncar la config del usuario
 - [x] v0.9.18 fix: install.sh sobrevive al upgrade del SO (pin versionado + wrapper con auto-reparación)
 - [x] v0.9.16 feat: contenedor siempre centrado + alineación de texto left/center/right
 - [x] v0.9.15 feat: config de alineación left/right (--align, tecla a en live)

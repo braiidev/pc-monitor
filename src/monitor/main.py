@@ -132,12 +132,13 @@ def _cli_uninstall() -> int:
     paths = [CONFIG_PATH, LEGACY_CONFIG_PATH]
     paths = [p for p in paths if p.exists()]
     if paths:
-        for p in paths:
-            print(f"  ↳ config en {p}")
+        # `p` arriba es str (viene de `targets`); acá es Path. Nombre aparte.
+        for cfg_path in paths:
+            print(f"  ↳ config en {cfg_path}")
         if _confirm("¿Borrar también la config? "):
-            for p in paths:
+            for cfg_path in paths:
                 try:
-                    p.unlink()
+                    cfg_path.unlink()
                 except OSError:
                     pass
         else:
@@ -281,8 +282,10 @@ def resolve_theme(
 ) -> str:
     """Valida el theme. Tema de config viejo/roto -> fallback silencioso a 'clasico'
     (y corrige el archivo). Solo --theme explícito inválido da error (SystemExit)."""
+    # g["theme"] viene de un dict[str, object], así que argparse lo deja como Any.
+    # is_theme() ya lo validó arriba, pero el tipo hay que narrowingarlo a str.
     if theme.is_theme(args.theme):
-        return args.theme
+        return str(args.theme)
     if "--theme" in argv:
         print(
             f"Tema desconocido: {args.theme!r} ({', '.join(theme.THEME_NAMES)})",
