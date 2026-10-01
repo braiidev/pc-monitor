@@ -4,7 +4,7 @@
 
 ## Next
 
-### 🔧 FIX — install.sh sobrevive al upgrade a Ubuntu 26.04 (Python 3.14)
+### 🔧 FIX — install.sh sobrevive al upgrade a Ubuntu 26.04 (Python 3.14) — CERRADO v0.9.18
 
 **Síntoma:** en la máquina `.38` (actualizada 24.04 → 26.04) `monitor` dejó de arrancar.
 
@@ -23,43 +23,41 @@ que no hubo "comando no encontrado": corrió 3.14 sobre layout 3.12 → buscó
 **Trampa de fondo:** el symlink moría con el venv, así que `monitor --update` tampoco servía para
 reparar. La salida estaba dentro de lo roto.
 
-**Verificado empíricamente** (3 formas de crear venv, mismo repo):
+**Decisión — opción B: Python del sistema versionado, detectado.** Invocar la ruta versionada y
+**persistir la versión en `.pinned-python`**. Justificación: `dependencies = []`, stdlib puro. uv
+agregaría una dependencia rompible sin comprar nada (0 MB, sin red para el intérprete).
 
-| Método | `.venv/bin/python` apunta a | ¿Sobrevive upgrade del SO? |
-|---|---|---|
-| `python3 -m venv` | `/usr/bin/python3` ← flotante | ❌ se rompe en silencio |
-| `python3.14 -m venv` | `/usr/bin/python3.14` | ✅ |
-| `uv venv --python /usr/bin/python3.14` | `/usr/bin/python3.14` | ✅ |
+- [x] v0.9.18a: `requires-python` de `>=3.9` a `>=3.10,<3.15`
+- [x] v0.9.18b: install.sh resuelve el `/usr/bin/python3.X` versionado más nuevo del rango y lo persiste en `.pinned-python`
+- [x] v0.9.18c: el venv se crea con la ruta versionada, nunca con `python3`; `venv_ok()` valida venv + pin + import
+- [x] v0.9.18d: `venv_flota()` — detecta el enlace colgando de `/usr/bin/python3`
+- [x] v0.9.18e: `~/.local/bin/monitor` es un **wrapper**, no un symlink (con health-check y auto-reparación)
+- [x] v0.9.18f: `update.py` — `sync_pinned_python()`, `venv_is_floating()`, `run_installer()`, `.created-at`
+- [x] v0.9.18g: smoke test (`monitor --version` con salida ≠ 0 si falla) + append idempotente de `~/.local/bin` al PATH
+- [x] v0.9.18h: `tests/e2e_install.sh` con el escenario real de rompimiento + 20 tests de update.py
 
-**Decisión para monitor — opción B: Python del sistema versionado, detectado.** Invocar la ruta
-versionada y **persistir la versión en `.pinned-python`** para que `--update` sepa qué validar.
-Justificación: `dependencies = []`, stdlib puro. uv agregaría una dependencia rompible sin comprar
-nada (0 MB, sin red para el intérprete).
+**La trampa propia del repo, confirmada empíricamente:** `install.sh:48` era
+`if [ -e "$BIN" ] && [ ! -L "$BIN" ]; then mv "$BIN" "$BIN.bak"`. Al pasar a wrapper eso respaldaba
+**nuestro propio wrapper en cada reinstalación**. El criterio ahora pasa a detectar el marcador
+dentro del archivo, no "es un archivo regular" — y un symlink viejo que apunta a `$VENV` se **borra**,
+porque `cat > $BIN` escribe atravesando symlinks.
 
-- [ ] v0.9.17: acota `requires-python` de `>=3.9` a `>=3.10,<3.15`. **Sin** `uv.lock`: sin deps no hay nada que resolver
-- [ ] v0.9.18: install.sh — resolver el `/usr/bin/python3.X` versionado más nuevo del rango + **persistirlo en `.pinned-python`**
-- [ ] v0.9.19: install.sh — recrear el venv con la ruta versionada (nunca con `python3`); auto-reparar si `.venv/bin/python` no responde o su versión ≠ la pineada
-- [ ] v0.9.20: wrapper `~/.local/bin/monitor` en vez de symlink — valida venv + versión pineada, repara o imprime el comando exacto
-- [ ] v0.9.21: `update.py` — `do_update()` valida la versión pineada y reconstruye el venv si el SO subió de minor (reusa el patrón de clock)
-- [ ] v0.9.22: smoke test final (`monitor --version`) con salida ≠ 0 si falla + append idempotente de `~/.local/bin` al PATH
-- [ ] v0.9.23: regenerar `~/Dev/MonitorPC/.venv` (entorno de desarrollo, separado del instalado) + test del escenario real (venv flotante → se detecta y repara) + README
-
-**Entrega:** un solo commit (v0.9.17-v0.9.23 unificados) + `git tag v0.9.17`, con este bloque como registro.
-
-**⚠️ Trampa propia de este repo — corregir antes que nada lo del wrapper:**
-`install.sh:48` tiene `if [ -e "$BIN" ] && [ ! -L "$BIN" ]; then mv "$BIN" "$BIN.bak"`.
-Al pasar a wrapper (archivo regular, no symlink) eso respaldaría **nuestro propio wrapper en cada
-reinstalación**. El criterio tiene que pasar a detectar nuestro marcador dentro del archivo, no
-"es un archivo regular".
-
-**No tocar:** `--uninstall` sigue funcionando (`os.unlink` borra symlink o archivo regular, y usa
-`realpath` para validar que el repo viva en `~/.local/share/pc-monitor`); la config en `~/.config/monitor`
-queda intacta.
+**Dos decisiones de diseño que vienen de Clock y acá no se pueden copiar:**
+- El wrapper **no solo avisa, repara**: si el venv no responde, corre el `install.sh` del repo y se
+  relanza. Funciona porque es bash y no necesita el venv. Auto-limitado a un intento.
+- Se relanza con `exec bash "$0" "${ARGS[@]}"` (no `exec "$VENV/bin/python"`): install.sh reescribe el
+  wrapper mientras corre y bash lee los scripts por partes. `ARGS=("$@")` se guarda aparte porque
+  dentro de `repair()` `"$@"` son los args de la función (vacíos) — sin eso se perdía `--version`.
 
 **Nota:** se sirve desde `raw.githubusercontent.com/braiidev/pc-monitor/main/install.sh`. El fix no
 llega a otra máquina hasta que esté pusheado a `main`.
 
+### Pendiente
+- [ ] v0.9.19: los 59 errores de mypy preexistentes en `main.py`, `config.py` y `views.py` (el proyecto no tiene config de mypy; `update.py` ya está limpio)
+- [ ] v0.9.20: `test_footer_oculto_si_no_cabe_o_config_off` de Clock (preexistente desde v0.55)
+
 ## Done
+- [x] v0.9.18 fix: install.sh sobrevive al upgrade del SO (pin versionado + wrapper con auto-reparación)
 - [x] v0.9.16 feat: contenedor siempre centrado + alineación de texto left/center/right
 - [x] v0.9.15 feat: config de alineación left/right (--align, tecla a en live)
 - [x] v0.9.14 feat: bloque centrado con texto alineado a la derecha (right_block)

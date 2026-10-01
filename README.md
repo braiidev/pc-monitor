@@ -8,20 +8,27 @@ Monitor de sistema en consola: RAM, SWAP, VRAM, CPU, disco, red y top procesos. 
 curl -fsSL https://raw.githubusercontent.com/braiidev/pc-monitor/main/install.sh | bash
 ```
 
-Instala sin sudo: código en `~/.local/share/pc-monitor/`, comando `monitor` en `~/.local/bin/monitor` (symlink al venv). La configuración queda en `~/.config/monitor/` y no se toca.
+Instala sin sudo: código en `~/.local/share/pc-monitor/`, comando `monitor` en `~/.local/bin/monitor`. La configuración queda en `~/.config/monitor/` y no se toca.
+
+El venv se crea con la **ruta versionada** del intérprete (`/usr/bin/python3.12`, `/usr/bin/python3.14`,
+…) y no con `python3`. `python3 -m venv` deja el symlink del venv apuntando a `/usr/bin/python3`, que
+resuelve a la última versión instalada: al subir el SO el venv queda con el layout de una versión
+ejecutando el intérprete de otra y `monitor` muere con `ModuleNotFoundError`. La versión elegida queda
+en `.pinned-python`.
+
+`~/.local/bin/monitor` es un **wrapper**, no un symlink al venv. Si el venv no responde (por ejemplo
+porque un upgrade del SO borró la versión que usaba), el wrapper detecta la rotura, vuelve a correr el
+`install.sh` del repo y se relanza solo. No hace falta copiar nada a mano.
 
 ### Dependencias por sistema
 
 | Sistema | Comando |
 |---|---|
-| Debian/Ubuntu | `sudo apt install git python3 python3-venv` |
-| Alpine | `apk add git python3 py3-pip py3-virtualenv` |
+| Debian/Ubuntu | `sudo apt install git python3 python3-venv bash` |
+| Alpine | `apk add git python3 py3-pip py3-virtualenv bash` |
 
-En Alpine no está `bash` (usa `sh`); el mismo script funciona con cualquiera de los dos:
-
-```sh
-curl -fsSL https://raw.githubusercontent.com/braiidev/pc-monitor/main/install.sh | sh
-```
+El script necesita `bash`: el wrapper que se instala en `~/.local/bin/monitor` es bash porque tiene que
+poder auto-reparar el venv aunque este esté roto, y para eso no puede depender de Python.
 
 ### Nota para desarrollo
 
