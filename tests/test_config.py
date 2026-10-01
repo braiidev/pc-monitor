@@ -176,3 +176,41 @@ def test_writer_quotes_custom_string_codes(tmp_path):
     assert 'red = "91"' in text
     assert 'yellow = ""' in text
     assert 'cyan = "38;5;117"' in text
+
+
+# ── Un cfg parcial no puede borrar la config del usuario ──
+# `_write_toml_lite` saltea las claves ausentes del dict. Eso convertía un cfg
+# parcial en una=config truncada`: las secciones quedaban vacías y el usuario
+# perdía todo lo que tenía. El archivoobserved era exactamente
+# `_write_toml_lite({"general": {"theme": "clasico"}, "sections": {}, "custom": {}})`.
+
+
+def test_save_config_con_cfg_parcial_no_trunca(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "CONFIG_PATH", tmp_path / "config.toml")
+    config.save_config({"general": {"theme": "clasico"}})
+    raw = (tmp_path / "config.toml").read_text()
+    for section in ("[general]", "[sections]", "[custom]"):
+        assert section in raw
+    assert "disk = " in raw
+    assert "red = " in raw
+    assert len(config.parse_toml_lite(raw)["sections"]) == len(
+        config.DEFAULT_CONFIG["sections"]
+    )
+
+
+def test_save_config_respeta_lo_que_vene_presente(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "CONFIG_PATH", tmp_path / "config.toml")
+    config.save_config({"general": {"theme": "clasico"}, "sections": {"disk": True}})
+    parsed = config.parse_toml_lite((tmp_path / "config.toml").read_text())
+    assert parsed["general"]["theme"] == "clasico"
+    assert parsed["sections"]["disk"] is True
+    # lo no tocado vuelve al default, no a "ausente"
+    assert parsed["sections"]["ram"] is True
+
+
+def test_fill_missing_no_muta_el_entrada(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "CONFIG_PATH", tmp_path / "config.toml")
+    original = {"general": {"theme": "oscuro"}}
+    config.save_config(original)
+    assert set(original["general"]) == {"theme"}
+    assert "sections" not in original

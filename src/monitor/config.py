@@ -161,10 +161,28 @@ def load_config() -> dict[str, dict[str, object]]:
     return _deep_merge_defaults(raw)
 
 
+def _fill_missing(cfg: dict[str, dict[str, object]]) -> dict[str, dict[str, object]]:
+    """Completa con DEFAULT_CONFIG lo que venga faltando, sin pisar lo presente.
+
+    `_write_toml_lite` saltea toda clave ausente del dict, así que un cfg parcial
+    dejaba las secciones vacías y se llevaba por delante lo que el usuario tenía
+    configurado. Completar con los defaults vuelve invariante que las tres
+    secciones se escriban siempre completas: perder una preferencia deja de
+    depender de qué dict llegó a save_config.
+    """
+    filled: dict[str, dict[str, object]] = {}
+    for section, defaults in DEFAULT_CONFIG.items():
+        filled[section] = {
+            **defaults,  # type: ignore[dict-item]
+            **cfg.get(section, {}),
+        }
+    return filled
+
+
 def save_config(cfg: dict[str, dict[str, object]]) -> None:
     try:
         CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
-        CONFIG_PATH.write_text(_write_toml_lite(cfg))
+        CONFIG_PATH.write_text(_write_toml_lite(_fill_missing(cfg)))
     except OSError:
         pass  # no interrumpir el monitor por un problema de disco al guardar preferencias
 
