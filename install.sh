@@ -48,9 +48,15 @@ in_range() {
 
 # Devuelve la ruta del mejor intérprete VERSIONADO disponible en el rango.
 # Ignora a propósito /usr/bin/python3 (el flotante): solo python3.X.
+#
+# Multi-SO: además del layout FHS de escritorio (/usr/bin, /usr/local/bin) se
+# escanea $PREFIX (Termux: /data/data/com.termux/files/usr, sin FHS) y se cae al
+# `command -v python3` del PATH como último recurso. En Ubuntu/Alpine $PREFIX
+# viene vacío y el glob se expande a nada, sin cambio de comportamiento.
 resolve_python() {
     local cand best="" best_min=-1 minor real v
-    for cand in /usr/bin/python3.* /usr/local/bin/python3.*; do
+    for cand in /usr/bin/python3.* /usr/local/bin/python3.* \
+                "${PREFIX:-/nonexistent}/bin/python3."*; do
         [ -x "$cand" ] || continue
         case "${cand##*/}" in
             python3.*) ;;
@@ -68,6 +74,14 @@ resolve_python() {
             best="$real"
         fi
     done
+    # Fallback multi-SO: si ningún glob matcheó (Termux u otro sin /usr/bin/python3.X
+    # visible), se usa el python3 del PATH y se versiona igual.
+    if [ -z "$best" ] && command -v python3 >/dev/null 2>&1; then
+        cand="$(command -v python3)"
+        v="$(py_minor "$cand")" || return 1
+        in_range "$v" || return 1
+        best="$(readlink -f "$cand" 2>/dev/null || printf '%s' "$cand")"
+    fi
     [ -n "$best" ] || return 1
     printf '%s\n' "$best"
 }
@@ -303,7 +317,7 @@ fi
 # El pin se reescribe SIEMPRE: si el intérprete pineado murió (upgrade del SO que
 # lo borró) hay que apuntar al nuevo, o el chequeo de venv_ok de abajo compara
 # contra un pin viejo y da falso negativo.
-PY="$(pick_python)" || die "no hay un /usr/bin/python3.X entre 3.$MIN_MINOR y 3.$((MAX_MINOR - 1))"
+PY="$(pick_python)" || die "no encontré python3.X en el rango 3.$MIN_MINOR-3.$((MAX_MINOR - 1)) (/usr/bin, /usr/local/bin, $PREFIX/bin o el PATH)"
 if [ -f "$PINNED" ] && [ "$(cat "$PINNED")" = "$PY" ]; then
     echo "  ↳ intérprete pineado: $PY (reusado)"
 else

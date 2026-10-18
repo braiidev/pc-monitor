@@ -4,6 +4,31 @@
 
 ## Next
 
+### 🔧 FIX — install.sh multi-SO: funciona en Termux (sin FHS ni sudo) — CERRADO v0.9.23
+
+**Síntoma:** en Termux (Android) `curl -fsSL .../install.sh | bash` moría dentro de `resolve_python()`.
+
+**Causa raíz:** el script asume **layout FHS de escritorio Linux**. Termux no lo tiene: todo vive
+en `$PREFIX` (`/data/data/com.termux/files/usr/bin/python3`), no existe `/usr/bin/python3.X` y no
+hay `sudo`. El detector de intérpretes escaneaba solo `/usr/bin/python3.*` y `/usr/local/bin/python3.*`,
+así que en Termux no encontraba nada y abortaba.
+
+**Decisión — un solo script para Alpine/Ubuntu/Termux, sin bifurcar:**
+- `resolve_python()` escanea además `${PREFIX:-/nonexistent}/bin/python3.*` y, si ningún glob
+  matchea, cae al `command -v python3` del PATH (versionado igual, sigue ignorando el flotante).
+  `$PREFIX` en escritorio viene **vacío**, el glob se expande a nada y el comportamiento no cambia:
+  es aditivo y retrocompatible.
+- Mensaje de `die` multi-SO: antes apuntaba a `/usr/bin/python3.X`, que en Termux no existe.
+- **Shebangs: sin cambios.** El wrapper usa `#!/usr/bin/env bash`, que resuelve por PATH y funciona
+  en Termux. El shebang del Python pineado lo escribe `resolve_python()` con la ruta absoluta versionada.
+- pc-monitor no tiene `detect_pkg_mgr` (dependencies = []), así que acá solo aplica el fix de Python.
+
+- [x] v0.9.23a: `resolve_python()` — glob extra `${PREFIX}/bin/python3.*` + fallback `command -v python3`
+- [x] v0.9.23b: mensaje de `die` con las 4 familias de rutas probadas
+
+**Verificación:** `bash -n install.sh` OK. Mismo fix en `clock`, `tplay` y `calc`. En Ubuntu/Alpine
+`$PREFIX` vacío ⇒ idéntico al comportamiento anterior.
+
 ### 🔧 FIX — install.sh sobrevive al upgrade a Ubuntu 26.04 (Python 3.14) — CERRADO v0.9.18
 
 **Síntoma:** en la máquina `.38` (actualizada 24.04 → 26.04) `monitor` dejó de arrancar.
@@ -91,6 +116,7 @@ Seis causas distintas, seis arreglos:
 **Verificación:** `mypy` (strict, sin flags) → `Success: no issues found in 9 source files`.
 
 ## Done
+- [x] v0.9.23 fix: install.sh multi-SO — $PREFIX (Termux) + fallback a python3 del PATH
 - [x] v0.9.20 chore: mypy strict limpio (59 → 0) + config en pyproject
 - [x] v0.9.19 fix: un cfg parcial ya no puede truncar la config del usuario
 - [x] v0.9.18 fix: install.sh sobrevive al upgrade del SO (pin versionado + wrapper con auto-reparación)
