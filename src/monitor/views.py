@@ -203,15 +203,17 @@ def full_info(args: argparse.Namespace, threshold_bytes: int, footer: str = "") 
 
     if getattr(args, "cpu", True):
         _section(dec, "CPU")
-        with open("/proc/loadavg") as f:
-            load = f.read().strip()
+        load = readers.read_loadavg()
         before = readers.read_cpu_lines()
         time.sleep(0.2)
         after = readers.read_cpu_lines()
         pct_by_core = readers.cpu_pct_from_lines(before, after)
         total_pct = pct_by_core.get("cpu", 0.0)
+        # "n/d" cuando el SO bloquea /proc/loadavg o /proc/stat (Android sin root).
+        load1 = load.split()[0] if load else "n/d"
+        total_str = f"{total_pct:.1f}%" if pct_by_core else "n/d"
         print(
-            f"  Load {load.split()[0]} · {os.cpu_count() or 0}c · {DIM}Total {total_pct:.1f}%{RESET}"
+            f"  Load {load1} · {os.cpu_count() or 0}c · {DIM}Total {total_str}{RESET}"
         )
         core_blocks: list[str] = []
         for cid, use_pct in pct_by_core.items():
@@ -320,9 +322,9 @@ def short_info(
         )
 
     if getattr(args, "cpu", True):
-        with open("/proc/loadavg") as f:
-            load = f.read().strip().split()[0]
-        blocks.append(f"  {CYAN}CPU{RESET} {load:>5}  {os.cpu_count() or 0}c")
+        load = readers.read_loadavg()
+        load1 = load.split()[0] if load else "n/d"
+        blocks.append(f"  {CYAN}CPU{RESET} {load1:>5}  {os.cpu_count() or 0}c")
 
     if getattr(args, "swap", False):
         swap_total = mi.get("SwapTotal", 0)

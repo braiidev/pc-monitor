@@ -4,6 +4,41 @@
 
 ## Next
 
+### 🔧 FIX — degradación elegante en Android: /proc bloqueado sin root — CERRADO v0.9.24
+
+**Síntoma:** en el tablet Android 15 (Termux, sin root) `monitor` moría con
+`PermissionError: [Errno 13] Permission denied: '/proc/loadavg'`.
+
+**Causa raíz — no es bug del código, es el SO.** Android 13+ restringe varios `/proc` a las apps
+sin root (política SELinux de `untrusted_app`). Medido en el dispositivo real:
+
+| /proc | ¿Legible? | Uso en monitor |
+|---|---|---|
+| `meminfo`, `cpuinfo` | ✅ | RAM, modelo CPU |
+| `loadavg` | ❌ EACCES | carga ← **acá crasheaba** |
+| `stat` | ❌ EACCES | % CPU |
+| `diskstats` | ❌ EACCES | E/S disco |
+| `net/dev` | ❌ EACCES | red |
+| `{pid}/stat`, `{pid}/status` | ❌ EACCES | top procesos |
+
+Sin root no hay forma de abrir eso. La decisión es **degradar sin crashear**: mostrar lo disponible
+(RAM, modelo CPU, nº de núcleos) y marcar `n/d` lo demás.
+
+**Qué cambió:**
+- [x] `read_loadavg()` nuevo → `str | None` (None si EACCES). Antes `views.py` abría `/proc/loadavg` a mano en 2 sitios (full y short) sin try.
+- [x] `read_cpu_lines()` → devuelve `[]` si EACCES; `cpu_pct_from_lines([], [])` ya daba `{}`, y la vista ahora muestra `Total n/d` en vez de `0.0%` falso.
+- [x] `net_stats()` → `{}` si EACCES (la vista ya imprimía "Sin interfaces activas" con dict vacío).
+- [x] `disk_stats()` → `except OSError` (antes solo `FileNotFoundError`, que no cubre EACCES).
+- [x] `read_procs()` → `[]` si `os.listdir(/proc)` falla.
+- [x] 7 tests de regresión con `builtins.open` → `PermissionError` (patrón `boom` del repo).
+
+**Verificación:** `mypy` strict → Success (9 archivos) · `pytest` 128 passed (+7) ·
+`bash tests/e2e_install.sh` 43/43. Las vistas de red y disco ya degradaban con dict vacío
+(`flex_wrap` vacío / "Sin interfaces activas"), no hubo que tocarlas.
+
+**No tocar:** en Linux normal `/proc/stat`, `loadavg`, `diskstats` y `net/dev` se leen igual que
+siempre; los `except OSError` solo actúan ante EACCES/ENOENT, así que no se ocultan errores nuevos.
+
 ### 🔧 FIX — install.sh multi-SO: funciona en Termux (sin FHS ni sudo) — CERRADO v0.9.23
 
 **Síntoma:** en Termux (Android) `curl -fsSL .../install.sh | bash` moría dentro de `resolve_python()`.
@@ -116,6 +151,7 @@ Seis causas distintas, seis arreglos:
 **Verificación:** `mypy` (strict, sin flags) → `Success: no issues found in 9 source files`.
 
 ## Done
+- [x] v0.9.24 fix: degradación elegante en Android — /proc bloqueado (loadavg/stat/diskstats/net) ya no crashea
 - [x] v0.9.23 fix: install.sh multi-SO — $PREFIX (Termux) + fallback a python3 del PATH
 - [x] v0.9.20 chore: mypy strict limpio (59 → 0) + config en pyproject
 - [x] v0.9.19 fix: un cfg parcial ya no puede truncar la config del usuario

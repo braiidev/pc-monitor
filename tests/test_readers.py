@@ -121,3 +121,52 @@ def test_disk_stats_keeps_disks_and_drops_partitions(monkeypatch, tmp_path):
     stats = readers.disk_stats()
     assert set(stats) == {"sda", "nvme0n1", "mmcblk0"}
     assert stats["nvme0n1"] == (8000 * 512, 9000 * 512)
+
+
+# ── Degradación elegante cuando Android bloquea /proc (EACCES sin root) ──
+# En Android 13+ sin root, /proc/loadavg, /proc/stat, /proc/diskstats y
+# /proc/net/dev devuelven PermissionError. Estos tests fijan que cada lector
+# degrade a un valor vacío en vez de propagar la excepción (que rompía la TUI).
+
+
+def _denied(*args, **kwargs):
+    raise PermissionError(13, "Permission denied")
+
+
+def test_read_loadavg_permission_error_returns_none(monkeypatch):
+    monkeypatch.setattr("builtins.open", _denied)
+    assert readers.read_loadavg() is None
+
+
+def test_read_loadavg_ok_returns_string(monkeypatch, tmp_path):
+    proc = tmp_path / "proc"
+    proc.mkdir()
+    (proc / "loadavg").write_text("0.42 0.30 0.25 1/234 5678\n")
+    monkeypatch.setattr(readers, "PROC_PATH", proc)
+    assert readers.read_loadavg() == "0.42 0.30 0.25 1/234 5678"
+
+
+def test_read_cpu_lines_permission_error_returns_empty(monkeypatch):
+    # /proc/stat bloqueado -> lista vacía -> cpu_pct_from_lines({}, {}) == {} -> vista "n/d".
+    monkeypatch.setattr("builtins.open", _denied)
+    assert readers.read_cpu_lines() == []
+
+
+def test_cpu_pct_from_empty_lines_is_empty():
+    assert readers.cpu_pct_from_lines([], []) == {}
+
+
+def test_net_stats_permission_error_returns_empty(monkeypatch):
+    monkeypatch.setattr("builtins.open", _denied)
+    assert readers.net_stats() == {}
+
+
+def test_disk_stats_permission_error_returns_empty(monkeypatch):
+    monkeypatch.setattr("builtins.open", _denied)
+    assert readers.disk_stats() == {}
+
+
+def test_read_procs_permission_error_returns_empty(monkeypatch):
+    # listdir de /proc también puede fallar: no debe lanzar.
+    monkeypatch.setattr("os.listdir", lambda *a, **k: (_ for _ in ()).throw(PermissionError(13)))
+    assert readers.read_procs() == []

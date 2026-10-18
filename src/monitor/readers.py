@@ -19,9 +19,27 @@ def read_meminfo() -> dict[str, int]:
     return d
 
 
+def read_loadavg() -> str | None:
+    """Load average (1 min). None si /proc/loadavg no es legible.
+
+    Android restringe varios /proc a las apps sin root (SELinux): /proc/loadavg
+    devuelve EACCES. Se devuelve None para que la vista degrade a "n/d".
+    """
+    try:
+        with open(PROC_PATH / "loadavg") as f:
+            return f.read().strip()
+    except OSError:
+        return None
+
+
 def read_cpu_lines() -> list[str]:
-    with open(PROC_PATH / "stat") as f:
-        return [l for l in f if l.startswith("cpu")]
+    # /proc/stat puede estar bloqueado en Android (sin root): se devuelve vacío y
+    # cpu_pct_from_lines({}, {}) da {}, así la vista muestra "n/d" sin crashear.
+    try:
+        with open(PROC_PATH / "stat") as f:
+            return [l for l in f if l.startswith("cpu")]
+    except OSError:
+        return []
 
 
 def cpu_pct_from_lines(before: list[str], after: list[str]) -> dict[str, float]:
@@ -76,22 +94,27 @@ def disk_stats() -> dict[str, tuple[int, int]]:
                     continue
                 sectors_read, sectors_written = int(parts[5]), int(parts[9])
                 stats[name] = (sectors_read * 512, sectors_written * 512)
-    except FileNotFoundError:
+    except OSError:
+        # FileNotFoundError o PermissionError (Android bloquea /proc/diskstats sin root).
         pass
     return stats
 
 
 def net_stats() -> dict[str, tuple[int, int]]:
     stats: dict[str, tuple[int, int]] = {}
-    with open(PROC_PATH / "net/dev") as f:
-        for line in f.readlines()[2:]:
-            iface, rest = line.split(":", 1)
-            iface = iface.strip()
-            if iface == "lo":
-                continue
-            fields = rest.split()
-            rx_bytes, tx_bytes = int(fields[0]), int(fields[8])
-            stats[iface] = (rx_bytes, tx_bytes)
+    try:
+        with open(PROC_PATH / "net/dev") as f:
+            for line in f.readlines()[2:]:
+                iface, rest = line.split(":", 1)
+                iface = iface.strip()
+                if iface == "lo":
+                    continue
+                fields = rest.split()
+                rx_bytes, tx_bytes = int(fields[0]), int(fields[8])
+                stats[iface] = (rx_bytes, tx_bytes)
+    except OSError:
+        # /proc/net/dev bloqueado en Android (sin root): la vista imprime "Sin interfaces".
+        pass
     return stats
 
 
@@ -126,7 +149,12 @@ def _parse_proc_stat(line: str) -> list[str]:
 def read_procs(limit: int = 0) -> list[tuple[int, str, str]]:
     """Devuelve procesos ordenados por RSS descendente. limit=0 -> todos."""
     procs: list[tuple[int, str, str]] = []
-    for pid in os.listdir(PROC_PATH):
+    try:
+        pids = os.listdir(PROC_PATH)
+    except OSError:
+        # listdir de /proc puede fallar (Android sin root): sin procesos, sin crash.
+        return []
+    for pid in pids:
         if not pid.isdigit():
             continue
         info = _proc_rss(pid)
